@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10151f">
+  <title>Sing RPG · 霧林遠征</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<header><div class="brand"><i aria-hidden="true">✦</i> SING <strong>RPG</strong></div><span id="level">Lv. 01</span></header>
+<main>
+  <section class="field" aria-labelledby="location">
+    <div class="scene">
+      <canvas id="world" width="480" height="208" aria-label="月光下的霧林與古堡，旅人正準備出發"></canvas>
+      <div class="caption"><small>霧林遠征</small><h1 id="location">月影山徑</h1></div>
+      <span id="phase">營地待命</span>
+    </div>
+    <div class="readout"><div><small>遭遇</small><b id="enemy">等待出發</b></div><div class="hp"><div class="hp-label"><small>生命</small><span id="hpText">—</span></div><progress id="hp" max="100" value="0" aria-label="敵方生命"></progress></div></div>
+  </section>
+  <div class="columns">
+    <section class="panel expedition">
+      <div class="heading"><span class="icon" aria-hidden="true">⚔</span><h2>本次冒險</h2></div>
+      <p id="status" role="status">停好車，先播放下方歌單，再開啟麥克風出發。</p>
+      <button id="action" class="primary">開始冒險 <span aria-hidden="true">→</span></button>
+      <div class="stats"><div><small>旅程時間</small><strong id="time">00:00</strong></div><div><small>擊敗魔物</small><strong id="kills">0</strong></div><div><small>取得裝備</small><strong id="drops">0</strong></div></div>
+    </section>
+    <section class="panel gear"><div class="heading"><span class="icon" aria-hidden="true">◇</span><h2>旅人裝備</h2></div><div class="gearline"><canvas id="portrait" width="40" height="44" aria-label="角色目前外觀"></canvas><div><small>目前配戴</small><b id="gearName">旅人斗篷</b></div></div><p id="collection">打倒魔物，收集裝備與外觀。</p></section>
+  </div>
+  <section class="panel music"><div class="heading"><span class="icon" aria-hidden="true">♫</span><h2>Apple Music 歌單</h2><a id="appleLink" target="_blank" rel="noopener noreferrer">在 Apple Music 開啟 ↗</a></div>
+    <details id="editor"><summary>更換歌單</summary><form id="playlistForm"><label for="playlist">Apple Music → 分享播放列表 → 複製連結</label><div class="inputrow"><input id="playlist" type="url" required placeholder="https://music.apple.com/…" autocapitalize="off"><button>載入</button></div><span id="formError" role="status"></span></form></details>
+    <iframe id="player" title="Apple Music 歌單播放器" allow="autoplay *; encrypted-media *; fullscreen *" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <p>點播放器內的播放鍵。完整歌曲需有效訂閱與 Apple Music 登入狀態。</p>
+  </section>
+  <section class="journal"><h2>遠征紀錄</h2><p id="history">你的第一趟旅程將記在這裡。</p></section>
+</main><script type="module" src="./app.js"></script>
+</body></html>
