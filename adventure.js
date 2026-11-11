@@ -1,5 +1,5 @@
-export function newTrip() {
-  return {elapsed:0, voice:0, kills:0, drops:0, stage:'travel', remaining:4, hp:0, maxHp:0, charge:0, strike:0};
+export function newTrip(route="forest") {
+  return {route, elapsed:0, voice:0, kills:0, drops:0, stage:'travel', remaining:4, hp:0, maxHp:0, charge:0, strike:0};
 }
 export function isBoss(trip) { return trip.kills % 3 === 2; }
 export function advance(trip, seconds, singing) {
