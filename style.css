@@ -888,17 +888,41 @@ body.on-quest {
   position: absolute;
   left: max(18px, env(safe-area-inset-left));
   bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  gap: 6px;
   color: var(--spell-color, #ffd285);
-  background: #172331dd;
-  padding: 5px 9px;
-  border-radius: 5px;
+  background: #172331e6;
+  padding: 9px 12px;
+  border: 1px solid #ffffff18;
+  border-radius: 6px;
   font-size: 12px;
   pointer-events: none;
 }
-#drumMeter { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
+#drumLabel { letter-spacing: .12em; }
+#drumMeter {
+  display: block;
+  width: 112px;
+  height: 5px;
+  border-radius: 3px;
+  background: #ffffff12;
+}
+#drumMeter::before {
+  content: '';
+  display: block;
+  width: var(--charge, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+  box-shadow: 0 0 7px currentColor;
+  transition: width 180ms ease-out;
+}
+#drumHud.charged {
+  border-color: currentColor;
+  box-shadow: 0 0 14px color-mix(in srgb, currentColor 25%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  #drumMeter::before { transition: none; }
+}
 #drumRipple {
   position: fixed;
   width: 44px;

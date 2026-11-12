@@ -44,16 +44,18 @@ export function battleDrums(field, game) {
   let active = false, mic = null, speaker = null, style, rhythm;
   let castAt = -Infinity, feedbackUntil = 0;
   let rippleAnimation;
-  function renderMeter(text = '鼓聲集氣') {
-    label.textContent = text;
+  function renderMeter() {
+    label.textContent = style.spell.name;
     meter.setAttribute('aria-valuenow', rhythm.charge);
-    meter.textContent = rhythm.charge + '%';
+    meter.style.setProperty('--charge', rhythm.charge + '%');
+    hud.classList.toggle('charged', rhythm.charge === 100);
   }
   function feedback(result, now) {
-    if (result.cast) castAt = now;
-    const casting = now - castAt < style.spell.duration;
-    feedbackUntil = casting ? castAt + style.spell.duration : now + 500;
-    renderMeter(casting ? style.spell.name : '+' + result.added + '%');
+    if (result.cast) {
+      castAt = now;
+      feedbackUntil = castAt + style.spell.duration;
+    }
+    renderMeter();
   }
   function setMic(input) {
     mic = input;
