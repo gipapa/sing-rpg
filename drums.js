@@ -6,13 +6,21 @@ export function drumVolume(game) {
     : 85;
 }
 export function drumCharge(random = Math.random) {
-  let charge = 0;
+  let charge = 0, singingSeconds = 0;
+  function add() {
+    const added = 1 + Math.floor(random() * 5);
+    charge = Math.min(100, charge + added);
+    return { added, cast: charge === 100 };
+  }
   return {
     get charge() { return charge; },
-    tap() {
-      const added = 1 + Math.floor(random() * 5);
-      charge = Math.min(100, charge + added);
-      return { added, cast: charge === 100 };
+    tap: add,
+    sing(dt, voiced) {
+      if (!voiced) return null;
+      singingSeconds += dt;
+      if (singingSeconds < 1) return null;
+      singingSeconds -= 1;
+      return add();
     },
     reset() { charge = 0; }
   };
@@ -113,10 +121,16 @@ export function battleDrums(field, game) {
       renderMeter();
     }
   }
+  function sing(dt, voiced) {
+    if (!active || game.story !== null || document.hidden) return;
+    if (rhythm.charge === 100) return;
+    const result = rhythm.sing(dt, voiced);
+    if (result) feedback(result, performance.now());
+  }
   function effect(now) {
     const progress = (now - castAt) / style.spell.duration;
     if (progress < 0 || progress >= 1) return null;
     return { style, progress: motion.matches ? .56 : progress };
   }
-  return { start, stop, setMic, sample, effect };
+  return { start, stop, setMic, sample, sing, effect };
 }

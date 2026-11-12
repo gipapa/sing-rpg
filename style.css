@@ -878,6 +878,28 @@ body.on-quest {
 .on-quest .caption {
   max-width: calc(100% - 28px);
 }
+.on-quest .scene > .hp {
+  position: absolute;
+  top: max(20px, calc(env(safe-area-inset-top) + 8px));
+  right: max(140px, calc(env(safe-area-inset-right) + 130px));
+  width: min(290px, 24vw);
+  max-width: none;
+  margin: 0;
+  padding: 4px 8px 7px;
+  background: #172331dd;
+  border-radius: 5px;
+}
+#hp { accent-color: #e45a60; }
+#hp::-webkit-progress-value { background: #e45a60; }
+#hp::-moz-progress-bar { background: #e45a60; }
+@media (orientation: portrait) {
+  .on-quest .scene > .hp {
+    top: max(80px, calc(env(safe-area-inset-top) + 68px));
+    right: max(18px, env(safe-area-inset-right));
+    width: calc((100vw - 36px) * .24);
+  }
+  .on-quest .caption { max-width: calc(76% - 34px); }
+}
 
 .on-quest #field {
   touch-action: manipulation;

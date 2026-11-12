@@ -19,6 +19,18 @@ test('charge caps at 100 and resets for another cycle', () => {
   meter.reset();
   assert.equal(meter.charge, 0);
 });
+test('singing and tapping share energy and silence adds none', () => {
+  const meter = drumCharge(() => .99);
+  assert.equal(meter.sing(.5, true), null);
+  assert.equal(meter.sing(10, false), null);
+  meter.tap();
+  assert.equal(meter.charge, 5);
+  assert.deepEqual(meter.sing(.5, true), { added: 5, cast: false });
+  assert.equal(meter.charge, 10);
+  for (let i = 0; i < 17; i++) meter.tap();
+  assert.deepEqual(meter.sing(1, true), { added: 5, cast: true });
+  assert.equal(meter.charge, 100);
+});
 test('legacy saves use defaults and volume preserves mute', () => {
   assert.equal(drumVolume({}), 85);
   assert.equal(drumVolume({ drumVolume: 0 }), 0);

@@ -121,6 +121,7 @@ function tick() {
   micPaused = mic && (mic.context.state !== 'running' || mic.track.muted) ? micPaused + dt : 0;
   if (micPaused >= 10) automaticAttack('收音暫停，已切換自動攻擊');
   voice = mic?.sample(dt) ?? false;
+  drums.sing(dt, voice);
   const event = advance(data, dt, !mic || voice);
   if (event || now - lastSaved >= 3000) {
     persist();
