@@ -125,10 +125,23 @@
           </div>
           <p id="nameStatus" role="status"></p>
         </form>
+        <div class="panel drum-settings">
+          <h2>合拍招式</h2>
+          <p>跟唱時輕點戰場，與歌聲起音合拍四次就會自動施放。集氣持續到本次回營。</p>
+          <label for="drumSpell">招式</label>
+          <select id="drumSpell"></select>
+          <label for="drumColor">配色</label>
+          <select id="drumColor"></select>
+        </div>
       </section>
       <section class="field" id="field" aria-labelledby="location">
         <div class="scene">
           <canvas id="world" width="480" height="208" aria-label="旅人與目前的遠征場景"></canvas>
+          <div id="drumHud" hidden>
+            <span id="drumLabel">合拍集氣</span>
+            <span id="drumMeter" role="progressbar" aria-label="合拍集氣" aria-valuemin="0" aria-valuenow="0"></span>
+          </div>
+          <span id="drumRipple" aria-hidden="true"></span>
           <div class="caption">
             <small id="routeName">苔冠王國</small>
             <h1 id="location">鹿角林道</h1>
@@ -207,11 +220,11 @@
       <p id="modeCountdown" class="auto-countdown"></p>
       <button type="button" id="singMode">
         <strong>跟唱模式</strong>
-        <span>用歌聲出招。使用系統預設麥克風，連接車機時音樂可能轉為通話音質。</span>
+        <span>用歌聲出招。輕點戰場打鼓，配合歌聲起音集氣放招。連接車機時音樂可能轉為通話音質。</span>
       </button>
       <button type="button" id="qualityMode" autofocus>
         <strong>高音質模式</strong>
-        <span>不開麥克風，角色自動戰鬥。</span>
+        <span>角色自動戰鬥，可輕點戰場打鼓。合拍集氣需使用跟唱模式。</span>
       </button>
       <button type="button" id="cancelMode">取消</button>
     </dialog>

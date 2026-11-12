@@ -16,6 +16,7 @@ import {
 } from './catalog.js';
 import { portrait, journalIcon, storyScene } from './scene.js';
 import { countdown } from './countdown.js';
+import { drumSpells, drumColors, drumStyle } from './drum-spells.js';
 
 const $ = (id) => document.getElementById(id);
 const characterName = (game, id) => (id === 0 ? game.name : companions[id - 1]);
@@ -30,6 +31,15 @@ function selected(el, on) {
   el.setAttribute('aria-pressed', String(on));
 }
 export function camp(game, persist) {
+  for (const [id, options, selected] of [
+    ['drumSpell', drumSpells, drumStyle(game).spell],
+    ['drumColor', drumColors, drumStyle(game).tint]
+  ]) {
+    const select = $(id);
+    for (const option of options) select.add(new Option(option.name, option.id));
+    select.value = selected.id;
+    select.onchange = () => { game[id] = select.value; persist(); };
+  }
   let tab = 'map',
     preview = game.country,
     member = 0,

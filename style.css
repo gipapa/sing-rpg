@@ -878,3 +878,45 @@ body.on-quest {
 .on-quest .caption {
   max-width: calc(100% - 28px);
 }
+
+.on-quest #field {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#drumHud {
+  position: absolute;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--spell-color, #ffd285);
+  background: #172331dd;
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 12px;
+  pointer-events: none;
+}
+#drumMeter { display: flex; gap: 5px; }
+#drumMeter i {
+  width: 9px;
+  height: 9px;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+#drumMeter .lit { background: currentColor; }
+#drumRipple {
+  position: fixed;
+  width: 44px;
+  height: 44px;
+  margin: -22px;
+  border: 2px solid #ffe6ad;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+.drum-settings { margin-top: 16px; }
+.drum-settings h2 { font-size: 20px; }
+.drum-settings p { color: var(--dim); margin: 8px 0 12px; }
+.drum-settings select { margin: 4px 14px 4px 5px; }

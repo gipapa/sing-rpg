@@ -1,4 +1,5 @@
 import {equipment, realms, elements} from './catalog.js';
+import {drawDrumSpell} from './drum-spells.js';
 const world = document.querySelector('#world');
 const ctx = world.getContext('2d');
 const backdrop = document.createElement('canvas');
@@ -370,7 +371,7 @@ function weather(c, element, time) {
     else if (Math.sin(t) > 0.15) rect(c, drift, fall, element === '冰' ? 2 : 1, 2, color);
   }
 }
-export function draw({ time, country, area, loadouts, party, stage, foe, strike }) {
+export function draw({ time, country, area, loadouts, party, stage, foe, strike, drumEffect }) {
   ctx.drawImage(landscape(country, area.land), 0, 0);
   weather(ctx, area.element, time);
   const walking = stage === 'travel',
@@ -402,6 +403,7 @@ export function draw({ time, country, area, loadouts, party, stage, foe, strike 
     rect(ctx, lead + 30, 159, 3, 8, '#ffe5a4');
   }
   ctx.restore();
+  if (drumEffect) drawDrumSpell(ctx, drumEffect.style, drumEffect.progress, W / 2, 178, visibleWidth);
 }
 export function portrait(canvas, gear, person) {
   const c = canvas.getContext('2d');

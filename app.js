@@ -5,6 +5,7 @@ import {battleScreenLock} from './screen.js';
 import {realms,monsters,equipment,companions,newGame,available,travelingParty} from './catalog.js';
 import {camp} from './camp.js';
 import {countdown} from './countdown.js';
+import {battleDrums} from './drums.js';
 const $=id=>document.getElementById(id);
 const defaultList='https://music.apple.com/tw/playlist/華語流行樂-重溫熱播/pl.6d8228f57b864a4296dc02d9761a0d9b';
 function playlistURL(input){
@@ -30,6 +31,7 @@ $('playlistForm').onsubmit=event=>{
 };
 const saveKey = 'eight-realms-v1';
 const data = read(saveKey) || newGame();
+const drums = battleDrums($('field'), data);
 function persist() {
   save(saveKey, data);
 }
@@ -100,6 +102,7 @@ function renderBattle() {
   if (modeNotice && !suspended) $('battleHint').textContent += ' · ' + modeNotice;
 }
 function automaticAttack(reason) {
+  drums.setMic(null);
   if (mic) {
     mic.track.onended = null;
     mic.close();
@@ -136,6 +139,7 @@ function tick() {
   renderBattle();
 }
 function returnToCamp() {
+  drums.stop();
   running = false;
   lobby.stopStory();
   clearInterval(timer);
@@ -197,6 +201,7 @@ async function startBattle(useMicrophone) {
     data.runs[data.country] ??= newTrip(data.country);
     persist();
     running = true;
+    drums.start(mic);
     party = travelingParty(data);
     document.querySelector('main').inert = false;
     focusBattle(true);
@@ -230,6 +235,7 @@ const lessMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let lastPaint = -100;
 function animate(ms) {
   if (!running) return;
+  drums.sample(ms);
   if (ms - lastPaint > (lessMotion.matches ? 200 : 45)) {
     const trip = data.runs[data.country];
     draw({
@@ -240,7 +246,8 @@ function animate(ms) {
       party,
       stage: trip.stage,
       foe: monsters[trip.foe],
-      strike: trip.strike
+      strike: trip.strike,
+      drumEffect: drums.effect(ms)
     });
     lastPaint = ms;
   }
@@ -262,5 +269,6 @@ window.addEventListener('pageshow', () => {
   if (!running && data.story !== null && !$('story').open) lobby.story();
 });
 document.addEventListener('visibilitychange', () => {
+  drums.clearTiming();
   if (document.hidden && running) persist();
 });
