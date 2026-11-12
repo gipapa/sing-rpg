@@ -1,47 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drumRhythm } from '../drums.js';
-import { vocalOnsets } from '../mic.js';
+import { drumCharge, drumVolume } from '../drums.js';
+import { echoSettings, connectEcho } from '../mic.js';
 import { drumStyle } from '../drum-spells.js';
 
-test('four distinct vocal onsets cast a spell with early or late taps', () => {
-  const rhythm = drumRhythm();
-  for (let i = 0; i < 4; i++) {
-    const time = 1000 + i * 600;
-    const first = i % 2 ? 'beat' : 'tap';
-    const second = i % 2 ? 'tap' : 'beat';
-    assert.equal(rhythm[first](time), null);
-    assert.equal(rhythm[second](time + 100), i === 3 ? 'cast' : 'match');
-    assert.equal(rhythm.beat(time + 110), null, 'onsets cannot reuse a matched tap');
+test('taps award every percentage from one to five without microphone input', () => {
+  for (let i = 0; i < 5; i++) {
+    const meter = drumCharge(() => i / 5);
+    assert.deepEqual(meter.tap(), { added: i + 1, cast: false });
+    assert.equal(meter.charge, i + 1);
   }
-  assert.equal(rhythm.charge, 0);
 });
-
-test('misses and interrupted timing preserve earned charge without false matches', () => {
-  const rhythm = drumRhythm();
-  rhythm.beat(1000);
-  assert.equal(rhythm.tap(1151), null);
-  assert.equal(rhythm.beat(1200), 'match');
-  rhythm.tap(2000);
-  rhythm.clearTiming();
-  assert.equal(rhythm.beat(2050), null);
-  assert.equal(rhythm.charge, 1);
+test('charge caps at 100 and resets for another cycle', () => {
+  const meter = drumCharge(() => .99);
+  for (let i = 0; i < 19; i++) assert.equal(meter.tap().cast, false);
+  assert.equal(meter.tap().cast, true);
+  assert.equal(meter.charge, 100);
+  meter.reset();
+  assert.equal(meter.charge, 0);
 });
-
-test('sustained voice yields one onset and low drum fundamentals yield none', () => {
-  const detector = vocalOnsets(48000, 2048);
-  const spectrum = new Float32Array(1024).fill(-120);
-  spectrum[4] = -20;
-  for (let t = 0; t < 300; t += 30) assert.equal(detector.sample(spectrum, t), null);
-  spectrum[14] = -30;
-  spectrum[28] = -40;
-  assert.equal(detector.sample(spectrum, 300), null);
-  assert.ok(detector.sample(spectrum, 330) > 250);
-  for (let t = 360; t < 900; t += 30) assert.equal(detector.sample(spectrum, t), null);
-});
-
-test('legacy saves and removed customizations use an available spell', () => {
+test('legacy saves use defaults and volume preserves mute', () => {
+  assert.equal(drumVolume({}), 85);
+  assert.equal(drumVolume({ drumVolume: 0 }), 0);
   assert.equal(drumStyle({}).spell.id, 'stars');
-  assert.equal(drumStyle({ drumSpell: 'removed', drumColor: 'removed' }).tint.id, 'original');
-  assert.equal(drumStyle({ drumSpell: 'rings', drumColor: 'jade' }).color, '#95edbc');
+  assert.deepEqual(echoSettings({}), { enabled: false, delay: 200 });
+});
+test('echo routes one delayed copy only when enabled, including zero delay', () => {
+  for (const enabled of [false, true]) {
+    const connections = [];
+    const output = {};
+    const delay = { delayTime: { value: -1 }, connect(node) { connections.push(node); } };
+    const source = { connect(node) { connections.push(node); return delay; } };
+    const context = { destination: output, createDelay() { return delay; } };
+    connectEcho(context, source, { echoEnabled: enabled, echoDelay: 0 });
+    assert.equal(delay.delayTime.value, 0);
+    assert.deepEqual(connections, enabled ? [delay, output] : []);
+  }
+  assert.equal(echoSettings({ echoDelay: NaN }).delay, 200);
+  assert.equal(echoSettings({ echoDelay: 1000 }).delay, 1000);
 });

@@ -17,6 +17,8 @@ import {
 import { portrait, journalIcon, storyScene } from './scene.js';
 import { countdown } from './countdown.js';
 import { drumSpells, drumColors, drumStyle } from './drum-spells.js';
+import { drumVolume } from './drums.js';
+import { echoSettings } from './mic.js';
 
 const $ = (id) => document.getElementById(id);
 const characterName = (game, id) => (id === 0 ? game.name : companions[id - 1]);
@@ -31,6 +33,33 @@ function selected(el, on) {
   el.setAttribute('aria-pressed', String(on));
 }
 export function camp(game, persist) {
+  const echo = echoSettings(game);
+  $('echoEnabled').checked = echo.enabled;
+  $('echoDelay').value = echo.delay;
+  function updateEcho() {
+    $('echoDelayValue').value = $('echoDelay').value + ' ms';
+  }
+  updateEcho();
+  $('echoEnabled').onchange = () => {
+    game.echoEnabled = $('echoEnabled').checked;
+    persist();
+  };
+  $('echoDelay').oninput = () => {
+    game.echoDelay = Number($('echoDelay').value);
+    updateEcho();
+    persist();
+  };
+  const volume = $('drumVolume');
+  volume.value = drumVolume(game);
+  function showVolume() {
+    $('drumVolumeValue').value = volume.value + '%';
+  }
+  showVolume();
+  volume.oninput = () => {
+    game.drumVolume = Number(volume.value);
+    showVolume();
+    persist();
+  };
   for (const [id, options, selected] of [
     ['drumSpell', drumSpells, drumStyle(game).spell],
     ['drumColor', drumColors, drumStyle(game).tint]
@@ -230,6 +259,13 @@ export function camp(game, persist) {
         icon.height = 40;
         icon.setAttribute('aria-hidden', 'true');
         journalIcon(icon, entry, isMonster);
+        if (!known[entry.id]) {
+          const context = icon.getContext('2d');
+          context.globalCompositeOperation = 'source-in';
+          context.fillStyle = '#000';
+          context.fillRect(0, 0, icon.width, icon.height);
+          context.globalCompositeOperation = 'source-over';
+        }
         const label = document.createElement('small'),
           title = document.createElement('strong'),
           detail = document.createElement('small');

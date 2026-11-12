@@ -126,20 +126,35 @@
           <p id="nameStatus" role="status"></p>
         </form>
         <div class="panel drum-settings">
-          <h2>合拍招式</h2>
-          <p>跟唱時輕點戰場，與歌聲起音合拍四次就會自動施放。集氣持續到本次回營。</p>
+          <h2>打鼓招式</h2>
+          <p>輕點戰場，每下隨機集氣 1–5%，集滿 100% 自動放招。集氣持續到本次回營。</p>
           <label for="drumSpell">招式</label>
           <select id="drumSpell"></select>
           <label for="drumColor">配色</label>
           <select id="drumColor"></select>
+          <div class="drum-volume">
+            <label for="drumVolume">鼓聲音量</label>
+            <input id="drumVolume" type="range" min="0" max="100" step="1" value="85" />
+            <output id="drumVolumeValue" for="drumVolume">85%</output>
+          </div>
+        </div>
+        <div class="panel drum-settings">
+          <h2>回聲</h2>
+          <label><input id="echoEnabled" type="checkbox" /> 播放麥克風回聲</label>
+          <p>跟唱模式收音時生效。建議戴耳機，避免喇叭聲被麥克風反覆收回。</p>
+          <div class="drum-volume">
+            <label for="echoDelay">延遲</label>
+            <input id="echoDelay" type="range" min="0" max="1000" step="10" value="200" />
+            <output id="echoDelayValue" for="echoDelay">200 ms</output>
+          </div>
         </div>
       </section>
       <section class="field" id="field" aria-labelledby="location">
         <div class="scene">
           <canvas id="world" width="480" height="208" aria-label="旅人與目前的遠征場景"></canvas>
           <div id="drumHud" hidden>
-            <span id="drumLabel">合拍集氣</span>
-            <span id="drumMeter" role="progressbar" aria-label="合拍集氣" aria-valuemin="0" aria-valuenow="0"></span>
+            <span id="drumLabel">鼓聲集氣</span>
+            <span id="drumMeter" role="progressbar" aria-label="打鼓集氣百分比" aria-valuemin="0" aria-valuenow="0"></span>
           </div>
           <span id="drumRipple" aria-hidden="true"></span>
           <div class="caption">
@@ -220,11 +235,11 @@
       <p id="modeCountdown" class="auto-countdown"></p>
       <button type="button" id="singMode">
         <strong>跟唱模式</strong>
-        <span>用歌聲出招。輕點戰場打鼓，配合歌聲起音集氣放招。連接車機時音樂可能轉為通話音質。</span>
+        <span>用歌聲出招，可使用麥克風回聲。輕點戰場打鼓集氣放招。連接車機時音樂可能轉為通話音質。</span>
       </button>
       <button type="button" id="qualityMode" autofocus>
         <strong>高音質模式</strong>
-        <span>角色自動戰鬥，可輕點戰場打鼓。合拍集氣需使用跟唱模式。</span>
+        <span>角色自動戰鬥，可輕點戰場打鼓集氣放招。</span>
       </button>
       <button type="button" id="cancelMode">取消</button>
     </dialog>

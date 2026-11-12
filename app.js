@@ -188,7 +188,7 @@ async function startBattle(useMicrophone) {
     let input = null;
     if (useMicrophone) {
       try {
-        input = await listen();
+        input = await listen(data);
       } catch {
         modeNotice = '麥克風未能啟用，已切換自動攻擊';
       }
@@ -269,6 +269,5 @@ window.addEventListener('pageshow', () => {
   if (!running && data.story !== null && !$('story').open) lobby.story();
 });
 document.addEventListener('visibilitychange', () => {
-  drums.clearTiming();
   if (document.hidden && running) persist();
 });

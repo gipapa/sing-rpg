@@ -1,34 +1,32 @@
 import { drumStyle } from './drum-spells.js';
 
-const beatsPerSpell = 4;
-const windowMs = 150;
-export function drumRhythm() {
-  let tapAt = -Infinity, beatAt = -Infinity, charge = 0;
-  function clearTiming() {
-    tapAt = beatAt = -Infinity;
-  }
-  function match() {
-    if (Math.abs(tapAt - beatAt) > windowMs) return null;
-    clearTiming();
-    charge = (charge + 1) % beatsPerSpell;
-    return charge === 0 ? 'cast' : 'match';
-  }
+export function drumVolume(game) {
+  return typeof game.drumVolume === 'number' && Number.isFinite(game.drumVolume)
+    ? Math.max(0, Math.min(100, game.drumVolume))
+    : 85;
+}
+export function drumCharge(random = Math.random) {
+  let charge = 0;
   return {
     get charge() { return charge; },
-    tap(at) { tapAt = at; return match(); },
-    beat(at) { beatAt = at; return match(); },
-    clearTiming
+    tap() {
+      const added = 1 + Math.floor(random() * 5);
+      charge = Math.min(100, charge + added);
+      return { added, cast: charge === 100 };
+    },
+    reset() { charge = 0; }
   };
 }
 
-function soundDrum(context) {
+function soundDrum(context, volume) {
+  if (volume === 0) return;
   const tone = context.createOscillator();
   const gain = context.createGain();
   const t = context.currentTime;
   tone.frequency.setValueAtTime(128, t);
   tone.frequency.exponentialRampToValueAtTime(63, t + .12);
   gain.gain.setValueAtTime(.0001, t);
-  gain.gain.exponentialRampToValueAtTime(.48, t + .009);
+  gain.gain.exponentialRampToValueAtTime(volume / 100, t + .009);
   gain.gain.exponentialRampToValueAtTime(.0001, t + .25);
   tone.connect(gain).connect(context.destination);
   tone.onended = () => { tone.disconnect(); gain.disconnect(); };
@@ -42,37 +40,23 @@ export function battleDrums(field, game) {
   const meter = field.querySelector('#drumMeter');
   const ripple = field.querySelector('#drumRipple');
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
-  const pips = Array.from({ length: beatsPerSpell }, () => document.createElement('i'));
-  meter.setAttribute('aria-valuemax', beatsPerSpell);
-  meter.replaceChildren(...pips);
+  meter.setAttribute('aria-valuemax', '100');
   let active = false, mic = null, speaker = null, style, rhythm;
-  let lastSample = -Infinity, castAt = -Infinity, feedbackUntil = 0, sampling = false;
+  let castAt = -Infinity, feedbackUntil = 0;
   let rippleAnimation;
-  function renderMeter(text = '合拍集氣') {
+  function renderMeter(text = '鼓聲集氣') {
     label.textContent = text;
     meter.setAttribute('aria-valuenow', rhythm.charge);
-    pips.forEach((pip, i) => pip.classList.toggle('lit', i < rhythm.charge));
+    meter.textContent = rhythm.charge + '%';
   }
   function feedback(result, now) {
-    if (!result) return;
-    if (result === 'cast') castAt = now;
+    if (result.cast) castAt = now;
     const casting = now - castAt < style.spell.duration;
     feedbackUntil = casting ? castAt + style.spell.duration : now + 500;
-    renderMeter(casting ? style.spell.name : '合拍！');
-  }
-  function receiving() {
-    return mic?.context.state === 'running' && !mic.track.muted && mic.track.readyState === 'live';
-  }
-  function clearTiming() {
-    rhythm?.clearTiming();
-    mic?.resetBeats();
-    lastSample = -Infinity;
-    sampling = false;
+    renderMeter(casting ? style.spell.name : '+' + result.added + '%');
   }
   function setMic(input) {
-    clearTiming();
     mic = input;
-    hud.hidden = !mic;
   }
   function stop() {
     active = false;
@@ -83,7 +67,8 @@ export function battleDrums(field, game) {
   }
   function start(input) {
     style = drumStyle(game);
-    rhythm = drumRhythm();
+    rhythm = drumCharge();
+    hud.hidden = false;
     active = true;
     castAt = -Infinity;
     feedbackUntil = 0;
@@ -98,7 +83,8 @@ export function battleDrums(field, game) {
   field.addEventListener('pointerdown', (event) => {
     if (!drumSurface(event)) return;
     const now = performance.now();
-    if (receiving()) feedback(rhythm.tap(now), now);
+    if (rhythm.charge === 100) rhythm.reset();
+    feedback(rhythm.tap(), now);
     ripple.style.left = event.clientX + 'px';
     ripple.style.top = event.clientY + 'px';
     rippleAnimation?.cancel();
@@ -110,7 +96,7 @@ export function battleDrums(field, game) {
     if (!Audio) return;
     const context = mic?.context ?? (speaker ??= new Audio());
     if (context.state !== 'running') context.resume().catch(() => {});
-    soundDrum(context);
+    soundDrum(context, drumVolume(game));
   });
   // Some touch browsers grant user activation on release.
   field.addEventListener('pointerup', (event) => {
@@ -119,17 +105,9 @@ export function battleDrums(field, game) {
   });
 
   function sample(now) {
-    if (!receiving() || game.story !== null || document.hidden) {
-      if (sampling) clearTiming();
-      return;
-    }
-    sampling = true;
-    if (now - lastSample < 24) return;
-    lastSample = now;
-    const beat = mic.sampleBeat(now);
-    if (beat !== null) feedback(rhythm.beat(beat), now);
     if (feedbackUntil && now >= feedbackUntil) {
       feedbackUntil = 0;
+      if (rhythm.charge === 100) rhythm.reset();
       renderMeter();
     }
   }
@@ -138,5 +116,5 @@ export function battleDrums(field, game) {
     if (progress < 0 || progress >= 1) return null;
     return { style, progress: motion.matches ? .56 : progress };
   }
-  return { start, stop, setMic, sample, effect, clearTiming };
+  return { start, stop, setMic, sample, effect };
 }

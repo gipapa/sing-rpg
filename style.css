@@ -898,14 +898,7 @@ body.on-quest {
   font-size: 12px;
   pointer-events: none;
 }
-#drumMeter { display: flex; gap: 5px; }
-#drumMeter i {
-  width: 9px;
-  height: 9px;
-  border: 1px solid currentColor;
-  transform: rotate(45deg);
-}
-#drumMeter .lit { background: currentColor; }
+#drumMeter { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
 #drumRipple {
   position: fixed;
   width: 44px;
@@ -920,3 +913,20 @@ body.on-quest {
 .drum-settings h2 { font-size: 20px; }
 .drum-settings p { color: var(--dim); margin: 8px 0 12px; }
 .drum-settings select { margin: 4px 14px 4px 5px; }
+.drum-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.drum-volume input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  accent-color: var(--gold);
+}
+.drum-volume output {
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
