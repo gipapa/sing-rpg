@@ -15,6 +15,7 @@ import {
   recruitmentLines
 } from './catalog.js';
 import { portrait, journalIcon, storyScene } from './scene.js';
+import { countdown } from './countdown.js';
 
 const $ = (id) => document.getElementById(id);
 const characterName = (game, id) => (id === 0 ? game.name : companions[id - 1]);
@@ -294,21 +295,25 @@ export function camp(game, persist) {
     }
   }
   for (const el of document.querySelectorAll('[data-tab]')) el.onclick = () => openTab(el.dataset.tab);
-  let storyTimer,
+  const storyCountdown = countdown($('storyCountdown'));
+  let afterStory = null,
     step = 0;
   function finishStory() {
-    clearTimeout(storyTimer);
+    if (game.story === null) return;
+    storyCountdown.cancel();
     const chapter = game.story;
+    const next = afterStory;
+    afterStory = null;
     game.story = null;
     persist();
     $('story').close();
-    if (chapter >= 0) {
+    if (next) next();
+    else if (chapter >= 0) {
       member = chapter + 2;
       openTab('crew');
     } else openTab('map');
   }
   function showFrame() {
-    clearTimeout(storyTimer);
     const chapter = game.story,
       intro = chapter === -1,
       final = chapter === 7,
@@ -344,17 +349,30 @@ export function camp(game, persist) {
     storyScene($('storyCanvas'), chapter, step, game);
     $('skipStory').textContent = intro ? '直接出發' : '略過動畫';
     $('skipStory').hidden = step === 2;
-    $('nextStory').textContent = step < 2 ? '下一幕 →' : intro ? '出發尋找公主 →' : '查看新夥伴 →';
-    if (step < 2)
-      storyTimer = setTimeout(() => {
-        step++;
-        showFrame();
-      }, 3100);
+    $('nextStory').textContent = step < 2 ? '下一幕 →' : afterStory ? '繼續遠征 →' : intro ? '出發尋找公主 →' : '查看新夥伴 →';
+    storyCountdown.start(
+      step < 2 ? 4 : 5,
+      (seconds) => seconds + ' 秒後' + (step < 2 ? '自動播放下一幕' : afterStory ? '自動從本國第一關繼續遠征' : '自動完成劇情'),
+      nextFrame
+    );
   }
-  function story() {
+  function nextFrame() {
+    if (step === 2) finishStory();
+    else {
+      step++;
+      showFrame();
+    }
+  }
+  function stopStory() {
+    storyCountdown.cancel();
+    afterStory = null;
+    $('story').close();
+  }
+  function story(next = null) {
     if (game.story === null) return;
+    afterStory = next;
     step = 0;
-    $('story').showModal();
+    if (!$('story').open) $('story').showModal();
     showFrame();
   }
   $('story').oncancel = (event) => {
@@ -362,13 +380,7 @@ export function camp(game, persist) {
     finishStory();
   };
   $('skipStory').onclick = finishStory;
-  $('nextStory').onclick = () => {
-    if (step === 2) finishStory();
-    else {
-      step++;
-      showFrame();
-    }
-  };
+  $('nextStory').onclick = nextFrame;
   openTab('map');
   story();
   return {
@@ -376,6 +388,7 @@ export function camp(game, persist) {
       preview = game.country;
       openTab('map');
     },
-    story
+    story,
+    stopStory
   };
 }

@@ -52,6 +52,7 @@
             <button id="action" class="primary" aria-haspopup="dialog" aria-controls="modeDialog">
               開始戰鬥 →
             </button>
+            <p>出發後自動接續戰鬥，打完國主會從本國第一關重新遠征。</p>
           </div>
         </div>
         <ol id="landmarks"></ol>
@@ -195,6 +196,7 @@
         <h2 id="storyTitle"></h2>
         <p id="storyLine"></p>
         <p id="storyReward"></p>
+        <p id="storyCountdown" class="auto-countdown"></p>
         <div class="controls">
           <button id="skipStory">直接出發</button><button class="primary" id="nextStory">下一幕 →</button>
         </div>
@@ -202,11 +204,12 @@
     </dialog>
     <dialog id="modeDialog" aria-labelledby="modeTitle">
       <h2 id="modeTitle">這趟想怎麼玩？</h2>
-      <button type="button" id="singMode" autofocus>
-        <strong>跟唱模式（預設）</strong>
+      <p id="modeCountdown" class="auto-countdown"></p>
+      <button type="button" id="singMode">
+        <strong>跟唱模式</strong>
         <span>用歌聲出招。使用系統預設麥克風，連接車機時音樂可能轉為通話音質。</span>
       </button>
-      <button type="button" id="qualityMode">
+      <button type="button" id="qualityMode" autofocus>
         <strong>高音質模式</strong>
         <span>不開麥克風，角色自動戰鬥。</span>
       </button>

@@ -543,6 +543,10 @@ dialog::backdrop {
 #storyReward {
   color: var(--gold);
 }
+.auto-countdown {
+  color: var(--dim);
+  font-size: 13px;
+}
 .field,
 .battle-only {
   display: none;

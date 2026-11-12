@@ -132,13 +132,13 @@ function victory(game, trip) {
   if (trip.step === 11 && !game.cleared.includes(trip.country)) {
     game.cleared.push(trip.country);
     game.story = trip.country;
-    delete game.runs[trip.country];
     return 'chapter';
   }
   return 'loot';
 }
 // Mutations for each transition are saved together by the caller, including the final reward and recruit.
 export function advance(game, dt, attacking) {
+  if (game.story !== null) return;
   const trip = game.runs[game.country];
   trip.elapsed += dt;
   trip.strike = Math.max(0, trip.strike - dt);

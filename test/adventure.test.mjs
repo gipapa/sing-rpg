@@ -43,6 +43,7 @@ test('the atlas has unique names and every local encounter and drop pool exists'
 
 test('a country keeps its enemy, area and HP while away or reloading', () => {
   let game = newGame();
+  game.story = null;
   assert.equal(game.name, 'あああ');
   game.name = '吟遊詩人あおい';
   game.cleared.push(0);
@@ -91,7 +92,8 @@ test('eight first clears recruit exactly once, then the princess can replay inde
     }
     game = JSON.parse(JSON.stringify(game));
     assert.equal(game.story, country);
-    assert.equal(game.runs[country], undefined);
+    assert.equal(game.runs[country].step, 11);
+    assert.equal(game.runs[country].stage, 'loot');
     game.story = null;
   }
   assert.deepEqual(
@@ -119,4 +121,52 @@ test('eight first clears recruit exactly once, then the princess can replay inde
   );
   assert.equal(game.cleared.length, 8);
   assert.equal(game.story, null);
+});
+
+test('first-clear stories preserve the reward and resume at the same country’s first battle', () => {
+  let game = newGame();
+  game.story = null;
+  game.runs[0] = newTrip(0);
+  nextEvent(game, 'chapter');
+  assert.equal(game.total, 12);
+  assert.deepEqual(game.cleared, [0]);
+  const snapshot = JSON.stringify(game);
+  for (let i = 0; i < 200; i++) advance(game, 0.1, true);
+  assert.equal(JSON.stringify(game), snapshot, 'combat waits for the story to finish');
+  game = JSON.parse(snapshot);
+  game.story = null;
+  nextEvent(game, 'travel');
+  assert.equal(game.country, 0);
+  assert.equal(game.runs[0].step, 0);
+  nextEvent(game, 'battle');
+  assert.equal(monsters[game.runs[0].foe].type, '普通');
+  assert.equal(game.total, 12, 'the boss reward is not granted twice');
+  assert.deepEqual(roster(game), [0, 1, 2]);
+});
+
+test('a 90-minute session keeps advancing and looping after bosses without losing progress', () => {
+  let game = newGame();
+  game.story = null;
+  game.runs[0] = newTrip(0);
+  let storySeconds = 0,
+    chapters = 0,
+    restarts = 0;
+  for (let tick = 0; tick < 90 * 60 * 10; tick++) {
+    if (game.story !== null) {
+      storySeconds += 0.1;
+      if (storySeconds >= 13) game.story = null;
+      continue;
+    }
+    const event = advance(game, 0.1, true);
+    if (event === 'chapter') chapters++;
+    if (event === 'travel' && game.runs[0].step === 0) restarts++;
+    if (tick % 1000 === 0) game = JSON.parse(JSON.stringify(game));
+    assert.equal(game.country, 0);
+    assert.ok(game.runs[0].step >= 0 && game.runs[0].step < 12);
+  }
+  assert.equal(chapters, 1);
+  assert.ok(restarts > 20, 'many full runs complete during a long session');
+  assert.ok(completedRuns(game) >= restarts);
+  assert.deepEqual(roster(game), [0, 1, 2]);
+  assert.equal(Object.values(game.owned).reduce((sum, count) => sum + count, 0), game.total);
 });
