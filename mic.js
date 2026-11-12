@@ -16,17 +16,38 @@ export function connectEcho(context, source, game) {
   return delay;
 }
 
-// Playback stays in Apple's player. Only inspect the microphone locally.
+// Request the communication session used by WebKit's video-chat audio mode.
+// The OS still chooses the physical output route.
+export function microphoneSession(host = navigator) {
+  const session = host.audioSession;
+  if (!session) return () => {};
+  const previous = session.type;
+  try {
+    session.type = 'play-and-record';
+  } catch {
+    return () => {};
+  }
+  return () => {
+    try {
+      if (session.type === 'play-and-record') session.type = previous;
+    } catch { /* Some browsers expose a read-only session. */ }
+  };
+}
+
+// Playback stays in Apple's player. Microphone processing stays on the device.
 export async function listen(game = {}) {
   if(!navigator.mediaDevices?.getUserMedia) throw Error('這個瀏覽器沒有提供麥克風，請用 Safari 或 Chrome 開啟。');
   const Audio = window.AudioContext || window.webkitAudioContext;
   const context = new Audio();
   let stream;
+  let restoreSession = () => {};
   function close(){
     stream?.getTracks().forEach(track=>track.stop());
     if(context.state!=='closed')context.close().catch(()=>{});
+    restoreSession();
   }
   try {
+    restoreSession = microphoneSession();
     await context.resume();
     stream=await navigator.mediaDevices.getUserMedia({
       audio:{echoCancellation:true, autoGainControl:false, noiseSuppression:false}

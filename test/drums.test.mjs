@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { drumCharge, drumVolume } from '../drums.js';
-import { echoSettings, connectEcho } from '../mic.js';
+import { echoSettings, connectEcho, microphoneSession } from '../mic.js';
 import { drumStyle } from '../drum-spells.js';
 
 test('taps award every percentage from one to five without microphone input', () => {
@@ -38,4 +38,15 @@ test('echo routes one delayed copy only when enabled, including zero delay', () 
   }
   assert.equal(echoSettings({ echoDelay: NaN }).delay, 200);
   assert.equal(echoSettings({ echoDelay: 1000 }).delay, 1000);
+});
+
+test('microphone communication session restores the previous mode when released', () => {
+  const host = { audioSession: { type: 'auto' } };
+  const release = microphoneSession(host);
+  assert.equal(host.audioSession.type, 'play-and-record');
+  release();
+  assert.equal(host.audioSession.type, 'auto');
+  assert.doesNotThrow(() => microphoneSession({})());
+  const locked = { audioSession: Object.freeze({ type: 'auto' }) };
+  assert.doesNotThrow(() => microphoneSession(locked)());
 });
