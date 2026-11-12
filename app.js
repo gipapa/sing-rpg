@@ -1,8 +1,9 @@
-import {draw,portrait} from './scene.js';
-import {advance,newTrip} from './adventure.js';
+import {draw} from './scene.js';
+import {advance,newTrip,currentArea} from './adventure.js';
 import {listen} from './mic.js';
 import {battleScreenLock} from './screen.js';
-import {encounter,items,routes,slots,restore} from './catalog.js';
+import {realms,monsters,equipment,companions,newGame,available} from './catalog.js';
+import {camp} from './camp.js';
 const $=id=>document.getElementById(id);
 const defaultList='https://music.apple.com/tw/playlist/華語流行樂-重溫熱播/pl.6d8228f57b864a4296dc02d9761a0d9b';
 function playlistURL(input){
@@ -25,156 +26,197 @@ $('playlistForm').onsubmit=event=>{
   try{loadList($('playlist').value);$('formError').textContent='';$('editor').open=false;}
   catch{$('formError').textContent='請在 Apple Music 的歌單選擇「分享播放列表」，複製完整的 music.apple.com 連結。';}
 };
-const data=restore(read('save')||{});
-let trip=data.current||newTrip(data.route), mic=null, running=false, pending=false, timer=0, frame=0, voice=false;
-const clock=s=>[Math.floor(s/60),Math.floor(s%60)].map(n=>String(n).padStart(2,'0')).join(':');
-function persist(){save('save',data);}
-for(const route of routes)$('route').add(new Option(route.name,route.id));
-$('route').value=data.current?.route||data.route;
-$('route').onchange=()=>{
-  data.route=$('route').value;trip=newTrip(data.route);persist();render();
-};
-function wardrobe(){
-  $('loadout').replaceChildren();
-  for(const [slot,title] of Object.entries(slots)){
-    const label=document.createElement('label'), select=document.createElement('select');
-    label.textContent=title;
-    for(const id of data.owned.filter(id=>items[id].slot===slot))
-      select.add(new Option(items[id].name,id));
-    select.value=data.equipped[slot];
-    select.onchange=()=>{data.equipped[slot]=select.value;persist();showGear();};
-    label.append(select);$('loadout').append(label);
-  }
-  showGear();
+const saveKey = 'eight-realms-v1';
+const data = read(saveKey) || newGame();
+function persist() {
+  save(saveKey, data);
 }
-function showGear(){
-  portrait(data.equipped);
-  $('gearName').textContent=items[data.equipped.body].name+' · '+items[data.equipped.weapon].name;
-  $('collection').textContent='已收藏 '+(data.owned.length-4)+' / 9 件遠征寶物';
-}
-function showAtlas(){
-  $('atlas').replaceChildren();
-  for(const route of routes){
-    const section=document.createElement('section'),heading=document.createElement('h3'),list=document.createElement('ol');
-    heading.textContent=route.name;
-    for(const [place,name,,id] of route.stops){
-      const li=document.createElement('li'), title=document.createElement('strong'), detail=document.createElement('small');
-      title.textContent=place+' · '+name+(list.children.length===2?'（王）':'');
-      detail.textContent=items[id].name+' ／ '+slots[items[id].slot]+(data.owned.includes(id)?'　已收藏':'');
-      li.append(title,detail);list.append(li);
-    }
-    section.append(heading,list);$('atlas').append(section);
-  }
-}
+const lobby = camp(data, persist);
+let mic = null,
+  running = false,
+  pending = false,
+  timer = 0,
+  frame = 0,
+  voice = false,
+  lastTick = 0,
+  lastSaved = 0,
+  startAttempt = 0;
+let outingSeconds = 0,
+  startingKills = 0;
 const keepScreenOn = battleScreenLock($('screenStatus'));
 const modeDialog = $('modeDialog');
 
-function musicDrawer(open){
-  document.body.classList.toggle('music-open',open);
+function musicDrawer(open) {
+  document.body.classList.toggle('music-open', open);
   $('musicPanel').inert = !open;
-  $('musicToggle').setAttribute('aria-expanded',String(open));
-  (open ? $('closeMusic') : $('musicToggle')).focus({preventScroll:true});
+  $('musicToggle').setAttribute('aria-expanded', String(open));
+  (open ? $('closeMusic') : $('musicToggle')).focus({ preventScroll: true });
 }
-$('musicToggle').onclick=()=>musicDrawer(!document.body.classList.contains('music-open'));
-$('closeMusic').onclick=()=>musicDrawer(false);
-document.addEventListener('keydown',event=>{
-  if(event.key==='Escape' && document.body.classList.contains('music-open'))musicDrawer(false);
+$('musicToggle').onclick = () => musicDrawer(!document.body.classList.contains('music-open'));
+$('closeMusic').onclick = () => musicDrawer(false);
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && document.body.classList.contains('music-open')) musicDrawer(false);
 });
-function focusBattle(on){
-  document.body.classList.toggle('on-quest',on);
+function focusBattle(on) {
+  document.body.classList.toggle('on-quest', on);
   document.body.classList.remove('music-open');
-  $('musicToggle').setAttribute('aria-expanded','false');
-  for(const el of document.querySelectorAll('body > header, main > :not(.field)'))el.inert=on;
+  $('musicToggle').setAttribute('aria-expanded', 'false');
+  for (const el of document.querySelectorAll('body > header, main > :not(.field)')) el.inert = on;
   keepScreenOn(on);
-  if(on)$('musicToggle').focus({preventScroll:true});
-  else $('action').focus({preventScroll:true});
+  if (on) $('musicToggle').focus({ preventScroll: true });
+  else $('action').focus({ preventScroll: true });
 }
-function render(){
-  const active=running||!!data.current;
-  const view=active?trip:data.last||trip;
-  const stage=active?trip.stage:'camp', foe=encounter(active?trip:newTrip(data.route));
-  $('routeName').textContent=foe.route.name;
-  $('location').textContent=foe.place;
-  $('phase').textContent=({camp:'營地待命',travel:'探索中',battle:foe.boss?'首領戰':'交戰中',loot:'取得寶物'})[stage];
-  $('enemy').textContent=stage==='battle'?foe.name:stage==='loot'?items[foe.relic].name:stage==='travel'?'前往'+foe.place:'等待出發';
-  $('hp').max=trip.maxHp||1;$('hp').value=stage==='battle'?trip.hp:0;
-  $('hpText').textContent=stage==='battle'?trip.hp+' / '+trip.maxHp:'—';
-  $('time').textContent=clock(view.elapsed);$('kills').textContent=view.kills;$('drops').textContent=view.drops;
-  $('level').textContent='Lv. '+String(1+Math.floor(data.total/3)).padStart(2,'0');
-  $('action').textContent=pending?'正在開始戰鬥…':data.current?'繼續戰鬥 →':'開始戰鬥 →';
-  $('action').disabled=pending;$('route').disabled=active||pending;
-  if(data.last)$('history').textContent='上次回營　'+clock(data.last.elapsed)+'　·　擊敗 '+data.last.kills+' 隻魔物　·　取得 '+data.last.drops+' 件戰利品';
+function renderBattle() {
+  const trip = data.runs[data.country],
+    area = currentArea(trip),
+    realm = realms[data.country];
+  const foe = monsters[trip.foe],
+    battle = trip.stage === 'battle';
+  $('routeName').textContent =
+    realm.name + ' · 第 ' + (Math.floor(trip.step / 3) + 1) + ' 區 · ' + area.element + '相';
+  $('location').textContent = realm.land[area.land];
+  $('teamNames').textContent = data.name + '　×　' + companions[data.partner - 1];
+  $('phase').textContent = battle ? foe.type + '戰' : trip.stage === 'loot' ? '取得裝備' : '探索中';
+  $('enemy').textContent = battle
+    ? foe.name
+    : trip.stage === 'loot'
+      ? equipment[trip.drop].name
+      : '前往' + realm.land[area.land];
+  $('hp').max = trip.maxHp || 1;
+  $('hp').value = battle ? trip.hp : 0;
+  $('hpText').textContent = battle ? trip.hp + ' / ' + trip.maxHp : '—';
+  const suspended = mic && (mic.context.state !== 'running' || mic.track.muted);
+  $('battleHint').textContent = suspended
+    ? '收音已暫停，請停車後回到網頁。'
+    : battle
+      ? (mic ? (voice ? '歌聲集氣' : '等待跟唱') : '自動攻擊') + ' · ' + trip.message
+      : trip.stage === 'loot'
+        ? '戰利品已收入全隊收藏。'
+        : '與夥伴一起前進中。';
 }
-function tick(){
-  if(!running)return;
-  const now=performance.now(), dt=Math.min(.25,(now-lastTick)/1000);
-  lastTick=now;voice=mic?.sample(dt) ?? false;
-  if(advance(trip,dt,voice,!mic)){
-    data.total++;
-    const drop=encounter(trip).relic;
-    if(!data.owned.includes(drop)){data.owned.push(drop);wardrobe();showAtlas();}
+function tick() {
+  if (!running) return;
+  const now = performance.now(),
+    dt = Math.min(0.25, (now - lastTick) / 1000);
+  lastTick = now;
+  outingSeconds += dt;
+  voice = mic?.sample(dt) ?? false;
+  const event = advance(data, dt, !mic || voice);
+  if (event || now - lastSaved >= 3000) {
     persist();
+    lastSaved = now;
   }
-  if(Math.floor(trip.elapsed)!==lastSecond){
-    lastSecond=Math.floor(trip.elapsed);
-    if(lastSecond%5===0)persist();
+  if (event === 'chapter') {
+    returnToCamp();
+    lobby.story();
+    return;
   }
-  const suspended=mic && (mic.context.state!=='running'||mic.track.muted);
-  const state=suspended?'收音已暫停，請停車後回到網頁。':trip.stage==='loot'?'戰利品已收入背包。':trip.stage==='battle'?(!mic?'自動戰鬥中':voice?'歌聲集氣中，自動出招。':'等待跟唱，攻擊進度已保留。'):'旅人正在山徑上前進。';
-  $('battleHint').textContent=state;
-  render();
+  renderBattle();
 }
-let lastTick=0,lastSecond=-1;
-function detach(){
-  running=false;
+function returnToCamp() {
+  data.lastOuting = { seconds: outingSeconds, kills: data.total - startingKills };
+  running = false;
   clearInterval(timer);
-  const old=mic;mic=null;
-  if(old){old.track.onended=null;old.close();}
-  voice=false;
-}
-function pause(){
-  if(!running)return;
-  detach();persist();render();focusBattle(false);
-  $('status').textContent='冒險進度已保存，停好車後可繼續。';
-}
-$('returnCamp').onclick=()=>{
-  if(!running)return;
-  detach();data.last={...trip};data.current=null;persist();render();focusBattle(false);
-  $('status').textContent='已回到營地，可以在旅人裝備裡換上戰利品。';
-};
-$('action').onclick=()=>{
-  if(!pending && !running && !modeDialog.open)modeDialog.showModal();
-};
-$('cancelMode').onclick=()=>modeDialog.close();
-$('singMode').onclick=()=>startBattle(true);
-$('qualityMode').onclick=()=>startBattle(false);
-
-async function startBattle(useMicrophone){
-  if(!modeDialog.open || pending || running)return;
-  modeDialog.close();
-  pending=true;render();
-  try{
-    mic=useMicrophone?await listen():null;
-    running=true;
-    trip=data.current||newTrip(data.route);data.current=trip;persist();
-    focusBattle(true);
-    if(mic)mic.track.onended=pause;
-    lastTick=performance.now();timer=setInterval(tick,100);
-  }catch(error){
-    $('status').textContent=error.name==='NotAllowedError'?'麥克風權限尚未開啟。請在瀏覽器網站設定允許麥克風，或選擇高音質模式。':error.name==='NotFoundError'?'找不到麥克風。接上收音裝置後可再試一次。':'無法開始收音。請確認麥克風可用，再重新開始。';
-  }finally{pending=false;render();}
-}
-const lessMotion=matchMedia('(prefers-reduced-motion: reduce)');
-let lastPaint=-100;
-function animate(ms){
-  if(ms-lastPaint>(lessMotion.matches?200:45)){
-    draw({time:lessMotion.matches?0:ms/1000,gear:data.equipped,stage:running?trip.stage:'camp',foe:encounter(running||data.current?trip:newTrip(data.route)),strike:running?trip.strike:0});
-    lastPaint=ms;
+  cancelAnimationFrame(frame);
+  if (mic) {
+    mic.track.onended = null;
+    mic.close();
+    mic = null;
   }
-  frame=requestAnimationFrame(animate);
+  voice = false;
+  persist();
+  lobby.refresh();
+  focusBattle(false);
+  $('status').textContent = '進度已保存。可繼續本國遠征，或從地圖前往其他國家。';
 }
-window.addEventListener('pagehide',()=>{pause();cancelAnimationFrame(frame);});
-window.addEventListener('pageshow',()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(animate);});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&data.current)persist();});
-wardrobe();showAtlas();render();frame=requestAnimationFrame(animate);
-if(data.current)$('status').textContent='上次離開時已存檔，可以從這裡繼續。';
+$('returnCamp').onclick = returnToCamp;
+$('action').onclick = () => {
+  if (!pending && !running && !modeDialog.open && data.story === null && available(data, data.country))
+    modeDialog.showModal();
+};
+$('cancelMode').onclick = () => modeDialog.close();
+$('singMode').onclick = () => startBattle(true);
+$('qualityMode').onclick = () => startBattle(false);
+
+async function startBattle(useMicrophone) {
+  if (!modeDialog.open || pending || running) return;
+  const attempt = ++startAttempt;
+  modeDialog.close();
+  pending = true;
+  $('action').disabled = true;
+  $('status').textContent = useMicrophone ? '正在開啟麥克風…' : '正在出發…';
+  document.querySelector('main').inert = true;
+  document.querySelector('header').inert = true;
+  try {
+    const input = useMicrophone ? await listen() : null;
+    if (attempt !== startAttempt) {
+      input?.close();
+      return;
+    }
+    mic = input;
+    data.runs[data.country] ??= newTrip(data.country);
+    persist();
+    running = true;
+    outingSeconds = 0;
+    startingKills = data.total;
+    document.querySelector('main').inert = false;
+    focusBattle(true);
+    renderBattle();
+    if (mic) mic.track.onended = returnToCamp;
+    lastTick = performance.now();
+    lastSaved = lastTick;
+    timer = setInterval(tick, 100);
+    frame = requestAnimationFrame(animate);
+  } catch (error) {
+    if (attempt !== startAttempt) return;
+    if (running) returnToCamp();
+    $('status').textContent =
+      error.name === 'NotAllowedError'
+        ? '麥克風權限尚未開啟。可使用高音質模式。'
+        : error.name === 'NotFoundError'
+          ? '找不到麥克風。可接上麥克風或使用高音質模式。'
+          : error.message;
+  } finally {
+    if (attempt === startAttempt) {
+      pending = false;
+      if (!running) {
+        document.querySelector('main').inert = false;
+        document.querySelector('header').inert = false;
+        $('action').disabled = false;
+      }
+    }
+  }
+}
+const lessMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let lastPaint = -100;
+function animate(ms) {
+  if (!running) return;
+  if (ms - lastPaint > (lessMotion.matches ? 200 : 45)) {
+    const trip = data.runs[data.country];
+    draw({
+      time: lessMotion.matches ? 0 : ms / 1000,
+      country: data.country,
+      area: currentArea(trip),
+      loadouts: data.loadouts,
+      partner: data.partner,
+      stage: trip.stage,
+      foe: monsters[trip.foe],
+      strike: trip.strike
+    });
+    lastPaint = ms;
+  }
+  frame = requestAnimationFrame(animate);
+}
+window.addEventListener('pagehide', () => {
+  if (pending) {
+    startAttempt++;
+    pending = false;
+    document.querySelector('main').inert = false;
+    document.querySelector('header').inert = false;
+    lobby.refresh();
+  }
+  if (running) returnToCamp();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && running) persist();
+});

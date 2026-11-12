@@ -1,53 +1,196 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#10151f">
-  <title>Sing RPG · 霧林遠征</title>
-  <link rel="stylesheet" href="./style.css">
-</head>
-<body>
-<header><div class="brand"><i aria-hidden="true">✦</i> SING <strong>RPG</strong></div><span id="level">Lv. 01</span></header>
-<main>
-  <section class="field" id="field" aria-labelledby="location">
-    <div class="scene">
-      <canvas id="world" width="480" height="208" aria-label="旅人與目前的遠征場景"></canvas>
-      <div class="caption"><small id="routeName">霧林古道</small><h1 id="location">月影山徑</h1></div>
-      <div class="battle-only battle-tools"><span id="screenStatus"></span><button type="button" id="musicToggle" aria-controls="musicPanel" aria-expanded="false">♫ 音樂</button></div>
-      <button type="button" id="returnCamp" class="battle-only">回營結算</button><span id="phase">營地待命</span>
-    </div>
-    <div class="readout"><div><small>遭遇</small><b id="enemy">等待出發</b></div><div id="battleHint" class="battle-only"></div><div class="hp"><div class="hp-label"><small>生命</small><span id="hpText">—</span></div><progress id="hp" max="100" value="0" aria-label="敵方生命"></progress></div></div>
-  </section>
-  <section class="panel music" id="musicPanel" aria-label="Apple Music 播放控制"><button type="button" id="closeMusic" class="battle-only">收起播放器</button><div class="heading"><span class="icon" aria-hidden="true">♫</span><h2>Apple Music 歌單</h2><a id="appleLink" target="_blank" rel="noopener noreferrer">在 Apple Music 開啟 ↗</a></div>
-    <details id="editor"><summary>更換歌單</summary><form id="playlistForm"><label for="playlist">Apple Music → 分享播放列表 → 複製連結</label><div class="inputrow"><input id="playlist" type="url" required placeholder="https://music.apple.com/…" autocapitalize="off"><button>載入</button></div><span id="formError" role="status"></span></form></details>
-    <iframe id="player" title="Apple Music 歌單播放器" allow="autoplay *; encrypted-media *; fullscreen *" referrerpolicy="strict-origin-when-cross-origin"></iframe>
-    <p>點播放器內的播放鍵。完整歌曲需有效訂閱與 Apple Music 登入狀態。</p>
-  </section>
-  <div class="columns">
-    <section class="panel expedition">
-      <div class="heading"><span class="icon" aria-hidden="true">⚔</span><h2>本次冒險</h2></div>
-      <label class="route-select">出發路線 <select id="route"></select></label>
-      <p id="status" role="status">停好車，先播放歌單，再開始戰鬥。</p>
-      <button id="action" class="primary" aria-haspopup="dialog" aria-controls="modeDialog">開始戰鬥 <span aria-hidden="true">→</span></button>
-      <div class="stats"><div><small>旅程時間</small><strong id="time">00:00</strong></div><div><small>擊敗魔物</small><strong id="kills">0</strong></div><div><small>取得裝備</small><strong id="drops">0</strong></div></div>
-    </section>
-    <section class="panel gear"><div class="heading"><span class="icon" aria-hidden="true">◇</span><h2>旅人裝備</h2></div><div class="gearline"><canvas id="portrait" width="40" height="44" aria-label="角色目前外觀"></canvas><div><small>目前配戴</small><b id="gearName">旅人斗篷</b></div></div><div id="loadout"></div><p id="collection">打倒魔物，收集裝備與外觀。</p></section>
-  </div>
-  <details class="guide panel"><summary>遠征圖鑑 · 路線、魔物與寶物</summary><div id="atlas"></div></details>
-  <section class="journal"><h2>遠征紀錄</h2><p id="history">你的第一趟旅程將記在這裡。</p></section>
-</main>
-<dialog id="modeDialog" aria-labelledby="modeTitle">
-  <h2 id="modeTitle">這趟想怎麼玩？</h2>
-  <button type="button" id="singMode" autofocus>
-    <strong>跟唱模式（預設）</strong>
-    <span>用歌聲出招。使用系統預設麥克風，連接車機時音樂可能轉為通話音質。</span>
-  </button>
-  <button type="button" id="qualityMode">
-    <strong>高音質模式</strong>
-    <span>不開麥克風，角色自動戰鬥。</span>
-  </button>
-  <button type="button" id="cancelMode">取消</button>
-</dialog>
-<script type="module" src="./app.js"></script>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#10151f" />
+    <title>Sing RPG · 八國尋歌</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand"><i aria-hidden="true">✦</i> SING <strong>RPG</strong> <small>八國尋歌</small></div>
+      <nav aria-label="營地選單">
+        <button data-tab="map">世界地圖</button><button data-tab="crew">夥伴整備</button
+        ><button data-tab="books">遠征圖鑑</button><button data-tab="settings">設定</button>
+      </nav>
+    </header>
+    <main>
+      <section id="map" class="camp-page">
+        <div class="page-title">
+          <div>
+            <small>WORLD ATLAS</small>
+            <h1>八國地圖</h1>
+          </div>
+          <span id="worldProgress"></span>
+        </div>
+        <div class="map-layout">
+          <div id="worldMap" aria-label="八國地圖"></div>
+          <div class="realm-card">
+            <small id="realmNumber"></small>
+            <h2 id="realmName"></h2>
+            <div id="affinities"></div>
+            <p id="realmInfo"></p>
+            <div id="routeState"></div>
+            <button id="action" class="primary" aria-haspopup="dialog" aria-controls="modeDialog">
+              開始戰鬥 →
+            </button>
+          </div>
+        </div>
+        <ol id="landmarks"></ol>
+        <p id="status" role="status">停好車，先播放歌單，再開始戰鬥。</p>
+        <p id="history"></p>
+      </section>
+      <section id="crew" class="camp-page" hidden>
+        <div class="page-title">
+          <div>
+            <small>COMPANIONS</small>
+            <h1>夥伴整備</h1>
+          </div>
+          <span id="crewCount"></span>
+        </div>
+        <div id="roster" class="controls"></div>
+        <div class="crew-layout">
+          <div class="portrait-stage">
+            <canvas id="portrait" width="42" height="46" aria-label="角色目前外觀"></canvas>
+          </div>
+          <div class="realm-card">
+            <small id="roleName"></small>
+            <h2 id="personName"></h2>
+            <b id="skillName"></b>
+            <p id="skillText"></p>
+            <button id="partnerButton" class="primary">設為同行夥伴</button>
+          </div>
+        </div>
+        <h2 class="subheading">角色裝備</h2>
+        <div id="loadout"></div>
+        <p id="collection"></p>
+      </section>
+      <section id="books" class="camp-page" hidden>
+        <div class="page-title">
+          <div>
+            <small>FIELD JOURNAL</small>
+            <h1>遠征圖鑑</h1>
+          </div>
+          <span id="bookCount"></span>
+        </div>
+        <div class="controls">
+          <button id="monsterTab">怪物圖鑑</button><button id="gearTab">裝備圖鑑</button>
+          <select id="bookCountry" aria-label="篩選國家">
+            <option value="">全部國家</option>
+          </select>
+          <select id="bookState" aria-label="登錄狀態">
+            <option>全部</option>
+            <option>已登錄</option>
+            <option>未登錄</option>
+          </select>
+          <input id="query" type="search" placeholder="名稱、屬相或種類" aria-label="搜尋圖鑑" />
+        </div>
+        <div id="atlas"></div>
+        <div class="pager">
+          <span id="pageCount"></span><button id="prev">上一頁</button><button id="next">下一頁</button>
+        </div>
+      </section>
+      <section id="settings" class="camp-page" hidden>
+        <div class="page-title">
+          <div>
+            <small>SETTINGS</small>
+            <h1>營地設定</h1>
+          </div>
+        </div>
+        <form id="nameForm" class="panel">
+          <label for="heroName">勇者姓名</label>
+          <div class="inputrow">
+            <input id="heroName" required autocomplete="off" /><button>儲存姓名</button>
+          </div>
+          <p id="nameStatus" role="status"></p>
+        </form>
+      </section>
+      <section class="field" id="field" aria-labelledby="location">
+        <div class="scene">
+          <canvas id="world" width="480" height="208" aria-label="旅人與目前的遠征場景"></canvas>
+          <div class="caption">
+            <small id="routeName">苔冠王國</small>
+            <h1 id="location">鹿角林道</h1>
+            <span id="teamNames"></span>
+          </div>
+          <div class="battle-only battle-tools">
+            <span id="screenStatus"></span
+            ><button type="button" id="musicToggle" aria-controls="musicPanel" aria-expanded="false">
+              ♫ 音樂
+            </button>
+          </div>
+          <button type="button" id="returnCamp" class="battle-only">回營結算</button
+          ><span id="phase">營地待命</span>
+        </div>
+        <div class="readout">
+          <div><small>遭遇</small><b id="enemy">等待出發</b></div>
+          <div id="battleHint" class="battle-only"></div>
+          <div class="hp">
+            <div class="hp-label"><small>生命</small><span id="hpText">—</span></div>
+            <progress id="hp" max="100" value="0" aria-label="敵方生命"></progress>
+          </div>
+        </div>
+      </section>
+      <section class="panel music" id="musicPanel" aria-label="Apple Music 播放控制">
+        <button type="button" id="closeMusic" class="battle-only">收起播放器</button>
+        <div class="heading">
+          <span class="icon" aria-hidden="true">♫</span>
+          <h2>Apple Music 歌單</h2>
+          <a id="appleLink" target="_blank" rel="noopener noreferrer">在 Apple Music 開啟 ↗</a>
+        </div>
+        <details id="editor">
+          <summary>更換歌單</summary>
+          <form id="playlistForm">
+            <label for="playlist">Apple Music → 分享播放列表 → 複製連結</label>
+            <div class="inputrow">
+              <input
+                id="playlist"
+                type="url"
+                required
+                placeholder="https://music.apple.com/…"
+                autocapitalize="off"
+              /><button>載入</button>
+            </div>
+            <span id="formError" role="status"></span>
+          </form>
+        </details>
+        <iframe
+          id="player"
+          title="Apple Music 歌單播放器"
+          allow="autoplay *; encrypted-media *; fullscreen *"
+          referrerpolicy="strict-origin-when-cross-origin"
+        ></iframe>
+        <p>點播放器內的播放鍵。完整歌曲需有效訂閱與 Apple Music 登入狀態。</p>
+      </section>
+    </main>
+    <dialog id="story" aria-labelledby="storyTitle">
+      <div id="storyArt">
+        <canvas id="storyCanvas" width="480" height="208" aria-label="王庭故事場景"></canvas>
+        <div class="doors" aria-hidden="true"><i></i><i></i></div>
+      </div>
+      <div class="story-copy">
+        <small id="storyLabel"></small>
+        <h2 id="storyTitle"></h2>
+        <p id="storyLine"></p>
+        <p id="storyReward"></p>
+        <div class="controls">
+          <button id="skipStory">直接出發</button><button class="primary" id="nextStory">下一幕 →</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="modeDialog" aria-labelledby="modeTitle">
+      <h2 id="modeTitle">這趟想怎麼玩？</h2>
+      <button type="button" id="singMode" autofocus>
+        <strong>跟唱模式（預設）</strong>
+        <span>用歌聲出招。使用系統預設麥克風，連接車機時音樂可能轉為通話音質。</span>
+      </button>
+      <button type="button" id="qualityMode">
+        <strong>高音質模式</strong>
+        <span>不開麥克風，角色自動戰鬥。</span>
+      </button>
+      <button type="button" id="cancelMode">取消</button>
+    </dialog>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
