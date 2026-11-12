@@ -27,13 +27,27 @@
   <div class="columns">
     <section class="panel expedition">
       <div class="heading"><span class="icon" aria-hidden="true">⚔</span><h2>本次冒險</h2></div>
-      <label class="route-select">出發路線 <select id="route"></select></label><label class="route-select">戰鬥收音 <select id="soundMode"><option value="builtin">跟唱 · 優先內建麥克風</option><option value="default">跟唱 · 系統預設麥克風</option><option value="music">音質優先 · 不開麥，自動戰鬥</option></select></label><p id="status" role="status">停好車，先播放歌單，再開始戰鬥。</p>
-      <button id="action" class="primary">開始戰鬥 <span aria-hidden="true">→</span></button>
+      <label class="route-select">出發路線 <select id="route"></select></label>
+      <p id="status" role="status">停好車，先播放歌單，再開始戰鬥。</p>
+      <button id="action" class="primary" aria-haspopup="dialog" aria-controls="modeDialog">開始戰鬥 <span aria-hidden="true">→</span></button>
       <div class="stats"><div><small>旅程時間</small><strong id="time">00:00</strong></div><div><small>擊敗魔物</small><strong id="kills">0</strong></div><div><small>取得裝備</small><strong id="drops">0</strong></div></div>
     </section>
     <section class="panel gear"><div class="heading"><span class="icon" aria-hidden="true">◇</span><h2>旅人裝備</h2></div><div class="gearline"><canvas id="portrait" width="40" height="44" aria-label="角色目前外觀"></canvas><div><small>目前配戴</small><b id="gearName">旅人斗篷</b></div></div><div id="loadout"></div><p id="collection">打倒魔物，收集裝備與外觀。</p></section>
   </div>
   <details class="guide panel"><summary>遠征圖鑑 · 路線、魔物與寶物</summary><div id="atlas"></div></details>
   <section class="journal"><h2>遠征紀錄</h2><p id="history">你的第一趟旅程將記在這裡。</p></section>
-</main><script type="module" src="./app.js"></script>
+</main>
+<dialog id="modeDialog" aria-labelledby="modeTitle">
+  <h2 id="modeTitle">這趟想怎麼玩？</h2>
+  <button type="button" id="singMode" autofocus>
+    <strong>跟唱模式（預設）</strong>
+    <span>用歌聲出招。使用系統預設麥克風，連接車機時音樂可能轉為通話音質。</span>
+  </button>
+  <button type="button" id="qualityMode">
+    <strong>高音質模式</strong>
+    <span>不開麥克風，角色自動戰鬥。</span>
+  </button>
+  <button type="button" id="cancelMode">取消</button>
+</dialog>
+<script type="module" src="./app.js"></script>
 </body></html>

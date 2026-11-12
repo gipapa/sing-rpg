@@ -34,3 +34,12 @@ body.on-quest{overflow:hidden}
 .on-quest.music-open #musicPanel #closeMusic{display:block;align-self:flex-end;margin-bottom:6px}
 .on-quest.music-open #player{height:min(300px,calc(100dvh - 96px))}
 @media(orientation:portrait){.on-quest .battle-tools{top:max(12px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));right:auto;flex-direction:row-reverse}}
+
+#modeDialog{width:min(400px,calc(100% - 32px));max-height:90dvh;overflow:auto;padding:22px;border:1px solid var(--edge);border-radius:12px;background:var(--panel);color:#f6f1e4}
+#modeDialog::backdrop{background:#080d16bb}
+#modeDialog h2{margin-bottom:14px}
+#modeDialog button{display:block;width:100%;min-height:44px;text-align:left}
+#modeDialog button strong,#modeDialog button span{display:block}
+#modeDialog button span{font-size:13px;font-weight:400;margin-top:3px}
+#qualityMode{margin-top:10px;background:#263444;color:#f6f1e4;border:1px solid var(--edge)}
+#modeDialog #cancelMode{margin-top:8px;background:transparent;color:var(--dim);text-align:center}

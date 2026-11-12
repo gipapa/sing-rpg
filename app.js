@@ -67,10 +67,7 @@ function showAtlas(){
   }
 }
 const keepScreenOn = battleScreenLock($('screenStatus'));
-const mode = $('soundMode');
-mode.value = read('mode') || 'builtin';
-if (!mode.value) mode.value = 'builtin';
-mode.onchange = () => save('mode', mode.value);
+const modeDialog = $('modeDialog');
 
 function musicDrawer(open){
   document.body.classList.toggle('music-open',open);
@@ -105,7 +102,7 @@ function render(){
   $('time').textContent=clock(view.elapsed);$('kills').textContent=view.kills;$('drops').textContent=view.drops;
   $('level').textContent='Lv. '+String(1+Math.floor(data.total/3)).padStart(2,'0');
   $('action').textContent=pending?'正在開始戰鬥…':data.current?'繼續戰鬥 →':'開始戰鬥 →';
-  $('action').disabled=pending;mode.disabled=running||pending;$('route').disabled=active||pending;
+  $('action').disabled=pending;$('route').disabled=active||pending;
   if(data.last)$('history').textContent='上次回營　'+clock(data.last.elapsed)+'　·　擊敗 '+data.last.kills+' 隻魔物　·　取得 '+data.last.drops+' 件戰利品';
 }
 function tick(){
@@ -145,21 +142,28 @@ $('returnCamp').onclick=()=>{
   detach();data.last={...trip};data.current=null;persist();render();focusBattle(false);
   $('status').textContent='已回到營地，可以在旅人裝備裡換上戰利品。';
 };
-$('action').onclick=async()=>{
-  if(pending)return;
-  if(running)return;
+$('action').onclick=()=>{
+  if(!pending && !running && !modeDialog.open)modeDialog.showModal();
+};
+$('cancelMode').onclick=()=>modeDialog.close();
+$('singMode').onclick=()=>startBattle(true);
+$('qualityMode').onclick=()=>startBattle(false);
+
+async function startBattle(useMicrophone){
+  if(!modeDialog.open || pending || running)return;
+  modeDialog.close();
   pending=true;render();
   try{
-    mic=mode.value==='music'?null:await listen(mode.value==='builtin');
+    mic=useMicrophone?await listen():null;
     running=true;
     trip=data.current||newTrip(data.route);data.current=trip;persist();
     focusBattle(true);
     if(mic)mic.track.onended=pause;
     lastTick=performance.now();timer=setInterval(tick,100);
   }catch(error){
-    $('status').textContent=error.name==='NotAllowedError'?'麥克風權限尚未開啟。請在瀏覽器網站設定允許麥克風，再按開始。':error.name==='NotFoundError'?'找不到麥克風。接上收音裝置後可再試一次。':'無法開始收音。請確認麥克風可用，再重新開始。';
+    $('status').textContent=error.name==='NotAllowedError'?'麥克風權限尚未開啟。請在瀏覽器網站設定允許麥克風，或選擇高音質模式。':error.name==='NotFoundError'?'找不到麥克風。接上收音裝置後可再試一次。':'無法開始收音。請確認麥克風可用，再重新開始。';
   }finally{pending=false;render();}
-};
+}
 const lessMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let lastPaint=-100;
 function animate(ms){
