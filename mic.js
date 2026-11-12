@@ -1,5 +1,38 @@
 // Playback stays in Apple's player. Only inspect the microphone locally.
-export async function listen() {
+function builtInInput(devices) {
+  return devices.find(device =>
+    device.kind === 'audioinput' && device.deviceId && device.deviceId !== 'default' &&
+    !/bluetooth|airpods|headset|耳機/i.test(device.label) &&
+    /built[- ]?in|internal mic|iphone.*(mic|麥克風)|ipad.*(mic|麥克風)|內建|内置/i.test(device.label)
+  );
+}
+
+async function capture(preferBuiltIn) {
+  const media = navigator.mediaDevices;
+  const options = {echoCancellation:true, autoGainControl:false, noiseSuppression:false};
+  const open = id => media.getUserMedia({audio:id ? {...options, deviceId:{exact:id}} : options});
+  if (!preferBuiltIn || !media.enumerateDevices) return open();
+  const findInput = async () => builtInInput(await media.enumerateDevices().catch(() => []));
+  let target = await findInput();
+  if (target) {
+    try { return await open(target.deviceId); }
+    catch (error) {
+      if (!['OverconstrainedError','NotFoundError'].includes(error.name)) throw error;
+    }
+  }
+  // Some browsers expose input labels only after the first permission grant.
+  const first = await open();
+  target = await findInput();
+  if (!target || target.deviceId === first.getAudioTracks()[0].getSettings().deviceId) return first;
+  first.getTracks().forEach(track => track.stop());
+  try { return await open(target.deviceId); }
+  catch (error) {
+    if (!['OverconstrainedError','NotFoundError','NotReadableError'].includes(error.name)) throw error;
+    return open();
+  }
+}
+
+export async function listen(preferBuiltIn) {
   if(!navigator.mediaDevices?.getUserMedia) throw Error('這個瀏覽器沒有提供麥克風，請用 Safari 或 Chrome 開啟。');
   const Audio = window.AudioContext || window.webkitAudioContext;
   const context = new Audio();
@@ -10,7 +43,7 @@ export async function listen() {
   }
   try {
     await context.resume();
-    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,autoGainControl:false,noiseSuppression:false}});
+    stream=await capture(preferBuiltIn);
     const source=context.createMediaStreamSource(stream);
     const filter=context.createBiquadFilter();
     filter.type='bandpass';filter.frequency.value=750;filter.Q.value=.48;

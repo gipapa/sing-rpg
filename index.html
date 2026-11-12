@@ -14,11 +14,12 @@
     <div class="scene">
       <canvas id="world" width="480" height="208" aria-label="旅人與目前的遠征場景"></canvas>
       <div class="caption"><small id="routeName">霧林古道</small><h1 id="location">月影山徑</h1></div>
+      <div class="battle-only battle-tools"><span id="screenStatus"></span><button type="button" id="musicToggle" aria-controls="musicPanel" aria-expanded="false">♫ 音樂</button></div>
       <button type="button" id="returnCamp" class="battle-only">回營結算</button><span id="phase">營地待命</span>
     </div>
     <div class="readout"><div><small>遭遇</small><b id="enemy">等待出發</b></div><div id="battleHint" class="battle-only"></div><div class="hp"><div class="hp-label"><small>生命</small><span id="hpText">—</span></div><progress id="hp" max="100" value="0" aria-label="敵方生命"></progress></div></div>
   </section>
-  <section class="panel music"><div class="heading"><span class="icon" aria-hidden="true">♫</span><h2>Apple Music 歌單</h2><a id="appleLink" target="_blank" rel="noopener noreferrer">在 Apple Music 開啟 ↗</a></div>
+  <section class="panel music" id="musicPanel" aria-label="Apple Music 播放控制"><button type="button" id="closeMusic" class="battle-only">收起播放器</button><div class="heading"><span class="icon" aria-hidden="true">♫</span><h2>Apple Music 歌單</h2><a id="appleLink" target="_blank" rel="noopener noreferrer">在 Apple Music 開啟 ↗</a></div>
     <details id="editor"><summary>更換歌單</summary><form id="playlistForm"><label for="playlist">Apple Music → 分享播放列表 → 複製連結</label><div class="inputrow"><input id="playlist" type="url" required placeholder="https://music.apple.com/…" autocapitalize="off"><button>載入</button></div><span id="formError" role="status"></span></form></details>
     <iframe id="player" title="Apple Music 歌單播放器" allow="autoplay *; encrypted-media *; fullscreen *" referrerpolicy="strict-origin-when-cross-origin"></iframe>
     <p>點播放器內的播放鍵。完整歌曲需有效訂閱與 Apple Music 登入狀態。</p>
@@ -26,7 +27,7 @@
   <div class="columns">
     <section class="panel expedition">
       <div class="heading"><span class="icon" aria-hidden="true">⚔</span><h2>本次冒險</h2></div>
-      <label class="route-select">出發路線 <select id="route"></select></label><p id="status" role="status">停好車，先播放歌單，再開啟麥克風出發。</p>
+      <label class="route-select">出發路線 <select id="route"></select></label><label class="route-select">戰鬥收音 <select id="soundMode"><option value="builtin">跟唱 · 優先內建麥克風</option><option value="default">跟唱 · 系統預設麥克風</option><option value="music">音質優先 · 不開麥，自動戰鬥</option></select></label><p id="status" role="status">停好車，先播放歌單，再開始戰鬥。</p>
       <button id="action" class="primary">開始戰鬥 <span aria-hidden="true">→</span></button>
       <div class="stats"><div><small>旅程時間</small><strong id="time">00:00</strong></div><div><small>擊敗魔物</small><strong id="kills">0</strong></div><div><small>取得裝備</small><strong id="drops">0</strong></div></div>
     </section>

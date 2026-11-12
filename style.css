@@ -24,3 +24,13 @@ body.on-quest{overflow:hidden}
 #battleHint{font-size:13px;color:var(--mint)}
 @media(orientation:portrait){.on-quest .readout{flex-wrap:wrap;gap:6px 12px}.on-quest #battleHint{order:1;flex-basis:100%}.on-quest .caption{top:64px}}
 @media(orientation:landscape) and (max-height:540px){.on-quest h1{font-size:26px}.on-quest .readout{gap:14px}.on-quest .hp{max-width:28%}}
+
+.on-quest .battle-tools{display:flex;align-items:center;gap:8px;position:absolute;right:max(16px,calc(env(safe-area-inset-right) + 6px));top:max(65px,calc(env(safe-area-inset-top) + 53px))}
+.battle-tools button,#closeMusic{background:#172331ed;color:#f6f1e4;border:1px solid #728185;font-size:14px;min-height:44px}
+#screenStatus{color:#f3ebd7;background:#172331dd;border-radius:4px;padding:2px 6px;font-size:11px}
+.on-quest.music-open #musicPanel{display:flex;flex-direction:column;position:fixed;bottom:max(8px,env(safe-area-inset-bottom));right:max(8px,env(safe-area-inset-right));z-index:20;width:min(440px,calc(100% - 16px));margin:0;padding:10px;box-shadow:0 8px 24px #091019aa}
+.on-quest.music-open #musicPanel>.heading,.on-quest.music-open #musicPanel>details,.on-quest.music-open #musicPanel>p{display:none}
+#musicPanel #closeMusic{display:none}
+.on-quest.music-open #musicPanel #closeMusic{display:block;align-self:flex-end;margin-bottom:6px}
+.on-quest.music-open #player{height:min(300px,calc(100dvh - 96px))}
+@media(orientation:portrait){.on-quest .battle-tools{top:max(12px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));right:auto;flex-direction:row-reverse}}
