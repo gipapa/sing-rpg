@@ -2,7 +2,7 @@ import {draw} from './scene.js';
 import {advance,newTrip,currentArea} from './adventure.js';
 import {listen} from './mic.js';
 import {battleScreenLock} from './screen.js';
-import {realms,monsters,equipment,companions,newGame,available} from './catalog.js';
+import {realms,monsters,equipment,companions,newGame,available,travelingParty} from './catalog.js';
 import {camp} from './camp.js';
 const $=id=>document.getElementById(id);
 const defaultList='https://music.apple.com/tw/playlist/華語流行樂-重溫熱播/pl.6d8228f57b864a4296dc02d9761a0d9b';
@@ -16,7 +16,8 @@ function read(key){try{return JSON.parse(localStorage.getItem('sing-rpg.'+key));
 function save(key,value){try{localStorage.setItem('sing-rpg.'+key,JSON.stringify(value));}catch{/* Private browsing can limit storage. */}}
 function loadList(raw){
   const link=playlistURL(raw);
-  $('player').src=link.replace('music.apple.com','embed.music.apple.com')+'?theme=dark';
+  const embed=link.replace('music.apple.com','embed.music.apple.com')+'?theme=dark';
+  if($('player').src!==embed)$('player').src=embed;
   $('appleLink').href=link;$('playlist').value=link;
   save('playlist',link);
 }
@@ -41,8 +42,7 @@ let mic = null,
   lastTick = 0,
   lastSaved = 0,
   startAttempt = 0;
-let outingSeconds = 0,
-  startingKills = 0;
+let party = travelingParty(data);
 const keepScreenOn = battleScreenLock($('screenStatus'));
 const modeDialog = $('modeDialog');
 
@@ -75,7 +75,7 @@ function renderBattle() {
   $('routeName').textContent =
     realm.name + ' · 第 ' + (Math.floor(trip.step / 3) + 1) + ' 區 · ' + area.element + '相';
   $('location').textContent = realm.land[area.land];
-  $('teamNames').textContent = data.name + '　×　' + companions[data.partner - 1];
+  $('teamNames').textContent = data.name + '　×　' + companions[data.partner - 1] + (party.length > 1 ? '　＋' + (party.length - 1) : '');
   $('phase').textContent = battle ? foe.type + '戰' : trip.stage === 'loot' ? '取得裝備' : '探索中';
   $('enemy').textContent = battle
     ? foe.name
@@ -99,7 +99,6 @@ function tick() {
   const now = performance.now(),
     dt = Math.min(0.25, (now - lastTick) / 1000);
   lastTick = now;
-  outingSeconds += dt;
   voice = mic?.sample(dt) ?? false;
   const event = advance(data, dt, !mic || voice);
   if (event || now - lastSaved >= 3000) {
@@ -114,7 +113,6 @@ function tick() {
   renderBattle();
 }
 function returnToCamp() {
-  data.lastOuting = { seconds: outingSeconds, kills: data.total - startingKills };
   running = false;
   clearInterval(timer);
   cancelAnimationFrame(frame);
@@ -157,8 +155,7 @@ async function startBattle(useMicrophone) {
     data.runs[data.country] ??= newTrip(data.country);
     persist();
     running = true;
-    outingSeconds = 0;
-    startingKills = data.total;
+    party = travelingParty(data);
     document.querySelector('main').inert = false;
     focusBattle(true);
     renderBattle();
@@ -198,7 +195,7 @@ function animate(ms) {
       country: data.country,
       area: currentArea(trip),
       loadouts: data.loadouts,
-      partner: data.partner,
+      party,
       stage: trip.stage,
       foe: monsters[trip.foe],
       strike: trip.strike

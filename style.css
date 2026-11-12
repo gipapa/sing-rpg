@@ -33,24 +33,117 @@ main {
   padding-bottom: 32px;
 }
 header {
-  min-height: 68px;
+  display: grid;
+  gap: 12px;
+  padding-top: 22px;
+  border-bottom: 1px solid var(--edge);
+}
+.brand h1 {
+  font-size: clamp(22px, 3.3vw, 36px);
+  line-height: 1.28;
+  letter-spacing: 0.035em;
+  text-wrap: balance;
+}
+.brand small {
+  color: var(--gold);
+  font: 15px var(--serif);
+  letter-spacing: 0.14em;
+}
+.party-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  padding: 9px 14px;
+  border-radius: 6px;
+}
+.summary-lineup,
+.summary-lead,
+#partySprites,
+.summary-totals {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.summary-lineup {
+  min-width: 0;
   gap: 12px;
-  border-bottom: 1px solid var(--edge);
 }
-.brand {
-  font: 700 21px var(--serif);
-  letter-spacing: 0.08em;
+.summary-lead {
+  min-width: 0;
+  gap: 4px;
 }
-.brand i {
-  font-style: normal;
+.summary-lead > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.summary-lead small {
+  display: block;
+}
+.summary-lead canvas {
+  width: 34px;
+  height: auto;
+}
+.party-summary canvas {
+  image-rendering: pixelated;
+  flex: none;
+}
+#partySprites {
+  border-left: 1px solid var(--edge);
+  padding-left: 8px;
+  gap: 1px;
+}
+#partySprites canvas {
+  width: 31px;
+  height: auto;
+}
+.party-overflow {
+  display: none;
+}
+.summary-totals {
+  gap: 6px 14px;
+  color: var(--dim);
+  font-size: 13px;
+}
+.summary-totals span {
+  white-space: nowrap;
+}
+.summary-totals strong {
   color: var(--gold);
+  font-variant-numeric: tabular-nums;
 }
-.brand small {
-  margin-left: 6px;
-  font-weight: 400;
+.book-progress {
+  display: grid;
+  min-width: 110px;
+  text-align: right;
+  gap: 4px;
+}
+.book-progress progress {
+  height: 6px;
+}
+.music-external {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.music .music-external a {
+  margin: 0;
+}
+#status:empty {
+  display: none;
+}
+@media (orientation: portrait) {
+  #partySprites canvas:nth-of-type(n + 4) {
+    display: none;
+  }
+  .party-overflow {
+    display: inline;
+  }
 }
 h1,
 h2,
@@ -71,7 +164,6 @@ h2 {
 }
 small,
 .page-title span,
-#history,
 #status,
 #collection,
 .pager span {
@@ -272,8 +364,7 @@ summary:focus-visible {
   color: var(--gold);
   grid-row: span 2;
 }
-#status,
-#history {
+#status {
   margin: 6px 0;
   overflow-wrap: anywhere;
 }
@@ -519,9 +610,8 @@ progress {
     width: calc(100% - 24px);
   }
   header {
-    flex-wrap: wrap;
-    padding-top: 8px;
-    gap: 2px 12px;
+    padding-top: 12px;
+    gap: 8px;
   }
   nav {
     gap: 5px;
@@ -777,7 +867,6 @@ body.on-quest {
   text-align: center;
 }
 #personName,
-#history,
 #nameStatus,
 #teamNames {
   overflow-wrap: anywhere;

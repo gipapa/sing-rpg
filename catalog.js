@@ -195,8 +195,7 @@ export function newGame() {
     loadouts: Array.from({ length: 10 }, () => [-1, -1, -1]),
     total: 0,
     story: -1,
-    lastDrop: null,
-    lastOuting: null
+    lastDrop: null
   };
 }
 export function available(game, country) {
@@ -207,4 +206,19 @@ export function available(game, country) {
 }
 export function roster(game) {
   return [0, 1, ...game.cleared.map((country) => country + 2)];
+}
+
+// The support companion stands at the front, followed by the other recruits in join order.
+export function travelingParty(game) {
+  return [game.partner, ...roster(game).filter((id) => id !== 0 && id !== game.partner)];
+}
+
+export function completedRuns(game) {
+  // Every clear is twelve wins. Remove unfinished runs in each country; the last boss's
+  // loot screen already represents a complete run. This also counts replays in older saves.
+  const unfinished = Object.values(game.runs).reduce(
+    (sum, trip) => sum + ((trip.step + Number(trip.stage === 'loot')) % 12),
+    0
+  );
+  return Math.floor((game.total - unfinished) / 12);
 }

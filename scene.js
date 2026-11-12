@@ -370,28 +370,36 @@ function weather(c, element, time) {
     else if (Math.sin(t) > 0.15) rect(c, drift, fall, element === '冰' ? 2 : 1, 2, color);
   }
 }
-export function draw({ time, country, area, loadouts, partner, stage, foe, strike }) {
+export function draw({ time, country, area, loadouts, party, stage, foe, strike }) {
   ctx.drawImage(landscape(country, area.land), 0, 0);
   weather(ctx, area.element, time);
   const walking = stage === 'travel',
     step = walking ? Math.round(Math.sin(time * 8)) : 0;
-  // The full-height portrait crop is narrower than the original 480-pixel stage.
-  const visibleWidth = (H * world.clientWidth) / Math.max(1, world.clientHeight);
-  const partyScale = Math.min(1, visibleWidth / 145);
+  const portraitView = matchMedia('(orientation: portrait)').matches;
+  const count = portraitView ? Math.min(2, party.length) : party.length;
+  const spacing = 32;
+  const visibleWidth = Math.min(W, (H * world.clientWidth) / Math.max(1, world.clientHeight));
+  // Center the entire visible formation, including space for a sovereign and a lunging weapon.
+  const formationWidth = count * spacing + 108;
+  const scale = Math.min(1, visibleWidth / formationWidth);
+  const lead = W / 2 + (count * spacing - 54) / 2;
   ctx.save();
   ctx.translate(W / 2, 178);
-  ctx.scale(partyScale, partyScale);
+  ctx.scale(scale, scale);
   ctx.translate(-W / 2, -178);
   const reach = strike > 0 ? Math.sin(Math.min(1, strike / 0.45) * Math.PI) : 0;
-  hero(ctx, 190, 175, loadouts[partner], partner, reach > 0.6, -step);
-  hero(ctx, 222 + reach * 13, 178, loadouts[0], 0, reach > 0.2, step);
+  for (let i = count - 1; i >= 0; i--) {
+    const id = party[i];
+    hero(ctx, lead - (i+1)*spacing, 174 + i%2, loadouts[id], id, i === 0 && reach > 0.6, i%2 ? step : -step);
+  }
+  hero(ctx, lead + reach * 13, 178, loadouts[0], 0, reach > 0.2, step);
   if (stage === 'battle' && foe) {
-    monster(ctx, 266, 178, foe, foe.base === 5 ? 5 : 3, time, reach > 0.5);
-    if (reach > 0.3) rect(ctx, 244, 153, 12, 2, '#ffe5b1');
+    monster(ctx, lead + 46, 178, foe, foe.base === 5 ? 5 : 3, time, reach > 0.5);
+    if (reach > 0.3) rect(ctx, lead + 24, 153, 12, 2, '#ffe5b1');
   }
   if (stage === 'loot') {
-    disk(ctx, 252, 164 + Math.round(Math.sin(time * 2)), 7, '#b48c4f');
-    rect(ctx, 250, 159, 3, 8, '#ffe5a4');
+    disk(ctx, lead + 32, 164 + Math.round(Math.sin(time * 2)), 7, '#b48c4f');
+    rect(ctx, lead + 30, 159, 3, 8, '#ffe5a4');
   }
   ctx.restore();
 }

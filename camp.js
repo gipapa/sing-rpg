@@ -2,6 +2,8 @@ import {
   realms,
   available,
   roster,
+  travelingParty,
+  completedRuns,
   companions,
   skills,
   skillText,
@@ -98,22 +100,38 @@ export function camp(game, persist) {
         ' · ' +
         (game.cleared.includes(id) ? '已通關' : available(game, id) ? '可遠征' : '尚未開放');
     });
-    $('history').textContent =
-      '勇者 ' +
-      game.name +
-      '　Lv. ' +
-      (1 + Math.floor(game.total / 3)) +
-      '　·　同行 ' +
-      characterName(game, game.partner) +
-      '　·　累計擊敗 ' +
-      game.total +
-      ' 隻' +
-      (game.lastDrop !== null ? '　·　最近取得 ' + equipment[game.lastDrop].name : '');
-    if (game.lastOuting) {
-      const { seconds, kills } = game.lastOuting;
-      const time = Math.floor(seconds / 60) + ':' + String(Math.floor(seconds % 60)).padStart(2, '0');
-      $('history').textContent += '　／　上趟 ' + time + ' · 擊敗 ' + kills + ' 隻 · 取得 ' + kills + ' 件';
+  }
+  function renderSummary() {
+    const party = travelingParty(game);
+    portrait($('leaderSprite'), game.loadouts[0], 0);
+    $('playerName').textContent = game.name;
+    $('playerLevel').textContent = 'Lv. ' + (1 + Math.floor(game.total / 3));
+    const sprites = party.map((id) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 42;
+      canvas.height = 46;
+      canvas.title = characterName(game, id);
+      canvas.setAttribute('role', 'img');
+      canvas.setAttribute('aria-label', canvas.title);
+      portrait(canvas, game.loadouts[id], id);
+      return canvas;
+    });
+    if (party.length > 3) {
+      const more = document.createElement('small');
+      more.className = 'party-overflow';
+      more.textContent = '+' + (party.length - 3);
+      more.title = party
+        .slice(3)
+        .map((id) => characterName(game, id))
+        .join('、');
+      sprites.push(more);
     }
+    $('partySprites').replaceChildren(...sprites);
+    $('killTotal').textContent = game.total;
+    $('clearTotal').textContent = completedRuns(game);
+    const found = Object.keys(game.seen).length + Object.keys(game.owned).length;
+    const total = monsters.length + equipment.length;
+    $('atlasPercent').textContent = Math.floor((found * 10000) / total) / 100 + '%';
   }
   function renderCrew() {
     const ids = roster(game);
@@ -128,13 +146,13 @@ export function camp(game, persist) {
         return el;
       })
     );
-    $('roleName').textContent = member === 0 ? '勇者' : member === game.partner ? '同行夥伴' : '營地夥伴';
+    $('roleName').textContent = member === 0 ? '吟遊詩人' : member === game.partner ? '援護夥伴' : '同行夥伴';
     $('personName').textContent = characterName(game, member);
-    $('skillName').textContent = member ? skills[member - 1] : '勇者出招';
+    $('skillName').textContent = member ? skills[member - 1] : '吟遊詩人出招';
     $('skillText').textContent = member ? skillText[member - 1] : '跟著歌聲攻擊，和同行夥伴一起探索八國。';
     $('partnerButton').hidden = member === 0;
     $('partnerButton').disabled = member === game.partner;
-    $('partnerButton').textContent = member === game.partner ? '目前同行' : '設為同行夥伴';
+    $('partnerButton').textContent = member === game.partner ? '目前援護' : '設為援護夥伴';
     const gear = game.loadouts[member];
     $('loadout').replaceChildren(
       ...slots.map((slot, i) => {
@@ -151,6 +169,7 @@ export function camp(game, persist) {
           gear[i] = Number(select.value);
           persist();
           portrait($('portrait'), gear, member);
+          renderSummary();
         };
         label.append(select);
         return label;
@@ -162,6 +181,7 @@ export function camp(game, persist) {
   $('partnerButton').onclick = () => {
     game.partner = member;
     persist();
+    renderSummary();
     renderCrew();
   };
   const journals = [equipment, monsters].map((book) =>
@@ -175,6 +195,8 @@ export function camp(game, persist) {
       known = isMonster ? game.seen : game.owned;
     selected($('monsterTab'), isMonster);
     selected($('gearTab'), !isMonster);
+    $('bookProgress').max = book.length;
+    $('bookProgress').value = Object.keys(known).length;
     $('bookCount').textContent =
       (isMonster ? '已遭遇 ' : '已收藏 ') + Object.keys(known).length + ' / ' + book.length;
     const country = $('bookCountry').value,
@@ -248,16 +270,18 @@ export function camp(game, persist) {
     event.preventDefault();
     const name = $('heroName').value.trim();
     if (!name) {
-      $('nameStatus').textContent = '請輸入勇者姓名。';
+      $('nameStatus').textContent = '請輸入吟遊詩人姓名。';
       return;
     }
     game.name = name;
+    renderSummary();
     $('heroName').value = name;
     persist();
-    $('nameStatus').textContent = '已儲存，勇者 ' + name + '。';
+    $('nameStatus').textContent = '已儲存，吟遊詩人 ' + name + '。';
   };
   function openTab(next) {
     tab = next;
+    renderSummary();
     for (const el of document.querySelectorAll('.camp-page')) el.hidden = el.id !== tab;
     for (const el of document.querySelectorAll('[data-tab]')) selected(el, el.dataset.tab === tab);
     $('musicPanel').hidden = tab !== 'map';

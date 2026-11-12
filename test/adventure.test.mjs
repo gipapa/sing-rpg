@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, realms, available, roster, monsters, equipment } from '../catalog.js';
+import {
+  completedRuns,
+  travelingParty,
+  newGame,
+  realms,
+  available,
+  roster,
+  monsters,
+  equipment
+} from '../catalog.js';
 import { newTrip, advance, currentArea } from '../adventure.js';
 
 function nextEvent(game, wanted) {
@@ -35,7 +44,7 @@ test('the atlas has unique names and every local encounter and drop pool exists'
 test('a country keeps its enemy, area and HP while away or reloading', () => {
   let game = newGame();
   assert.equal(game.name, 'あああ');
-  game.name = '勇者あおい';
+  game.name = '吟遊詩人あおい';
   game.cleared.push(0);
   game.runs[0] = newTrip(0);
   nextEvent(game, 'battle');
@@ -51,11 +60,12 @@ test('a country keeps its enemy, area and HP while away or reloading', () => {
   game = JSON.parse(JSON.stringify(game));
   game.country = 0;
   assert.deepEqual(game.runs[0], snapshot);
-  assert.equal(game.name, '勇者あおい');
+  assert.equal(game.name, '吟遊詩人あおい');
   assert.equal(game.seen[foe].count, 1);
   assert.equal(currentArea(run).element, monsters[foe].element);
   nextEvent(game, 'loot');
   assert.equal(game.total, 2);
+  assert.equal(completedRuns(game), 0);
 });
 
 test('eight first clears recruit exactly once, then the princess can replay indefinitely', () => {
@@ -88,13 +98,18 @@ test('eight first clears recruit exactly once, then the princess can replay inde
     roster(game).toSorted((a, b) => a - b),
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
   );
+  assert.equal(completedRuns(game), 8);
   game.partner = 9;
+  assert.deepEqual(travelingParty(game), [9, 1, 2, 6, 3, 7, 4, 8, 5]);
   const gift = equipment[game.lastDrop];
   game.loadouts[9][gift.slot] = gift.id;
   assert.equal(game.loadouts[0][gift.slot], -1);
   game.country = 0;
   game.runs[0] = newTrip(0);
-  for (let i = 0; i < 24; i++) nextEvent(game, 'loot');
+  for (let i = 0; i < 24; i++) {
+    nextEvent(game, 'loot');
+    assert.equal(completedRuns(game), 8 + Math.floor((i + 1) / 12));
+  }
   nextEvent(game, 'travel');
   assert.equal(game.runs[0].step, 0);
   assert.equal(game.total, 120);

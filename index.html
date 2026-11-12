@@ -4,12 +4,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#10151f" />
-    <title>Sing RPG · 八國尋歌</title>
+    <title>轉生異世界無法成為勇者只好轉職吟遊詩人拯救世界 · sing rpg</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <header>
-      <div class="brand"><i aria-hidden="true">✦</i> SING <strong>RPG</strong> <small>八國尋歌</small></div>
+      <div class="brand">
+        <h1>轉生異世界無法成為勇者<wbr />只好轉職吟遊詩人拯救世界</h1>
+        <small>sing rpg</small>
+      </div>
+      <section class="party-summary" aria-label="遠征隊伍與累計紀錄">
+        <div class="summary-lineup">
+          <div class="summary-lead">
+            <canvas id="leaderSprite" width="42" height="46" aria-hidden="true"></canvas>
+            <div><strong id="playerName"></strong><small id="playerLevel"></small></div>
+          </div>
+          <div id="partySprites" aria-label="同行夥伴"></div>
+        </div>
+        <div class="summary-totals">
+          <span>累計擊敗 <strong id="killTotal"></strong> 隻怪物</span>
+          <span>通關 <strong id="clearTotal"></strong> 次</span>
+          <span>圖鑑收集 <strong id="atlasPercent"></strong></span>
+        </div>
+      </section>
       <nav aria-label="營地選單">
         <button data-tab="map">世界地圖</button><button data-tab="crew">夥伴整備</button
         ><button data-tab="books">遠征圖鑑</button><button data-tab="settings">設定</button>
@@ -20,12 +37,12 @@
         <div class="page-title">
           <div>
             <small>WORLD ATLAS</small>
-            <h1>八國地圖</h1>
+            <h1>世界地圖</h1>
           </div>
           <span id="worldProgress"></span>
         </div>
         <div class="map-layout">
-          <div id="worldMap" aria-label="八國地圖"></div>
+          <div id="worldMap" aria-label="世界地圖"></div>
           <div class="realm-card">
             <small id="realmNumber"></small>
             <h2 id="realmName"></h2>
@@ -38,8 +55,7 @@
           </div>
         </div>
         <ol id="landmarks"></ol>
-        <p id="status" role="status">停好車，先播放歌單，再開始戰鬥。</p>
-        <p id="history"></p>
+        <p id="status" role="status"></p>
       </section>
       <section id="crew" class="camp-page" hidden>
         <div class="page-title">
@@ -59,7 +75,7 @@
             <h2 id="personName"></h2>
             <b id="skillName"></b>
             <p id="skillText"></p>
-            <button id="partnerButton" class="primary">設為同行夥伴</button>
+            <button id="partnerButton" class="primary">設為援護夥伴</button>
           </div>
         </div>
         <h2 class="subheading">角色裝備</h2>
@@ -72,7 +88,10 @@
             <small>FIELD JOURNAL</small>
             <h1>遠征圖鑑</h1>
           </div>
-          <span id="bookCount"></span>
+          <div class="book-progress">
+            <progress id="bookProgress" aria-label="圖鑑收集進度" max="1152" value="0"></progress
+            ><span id="bookCount"></span>
+          </div>
         </div>
         <div class="controls">
           <button id="monsterTab">怪物圖鑑</button><button id="gearTab">裝備圖鑑</button>
@@ -99,7 +118,7 @@
           </div>
         </div>
         <form id="nameForm" class="panel">
-          <label for="heroName">勇者姓名</label>
+          <label for="heroName">吟遊詩人姓名</label>
           <div class="inputrow">
             <input id="heroName" required autocomplete="off" /><button>儲存姓名</button>
           </div>
@@ -137,7 +156,10 @@
         <div class="heading">
           <span class="icon" aria-hidden="true">♫</span>
           <h2>Apple Music 歌單</h2>
-          <a id="appleLink" target="_blank" rel="noopener noreferrer">在 Apple Music 開啟 ↗</a>
+        </div>
+        <div class="music-external">
+          <a id="appleLink" target="_blank" rel="noopener noreferrer">在 Apple Music 播放 ↗</a
+          ><small>內嵌播放器要求重新登入時，可直接開啟歌單，播放後回到遊戲。</small>
         </div>
         <details id="editor">
           <summary>更換歌單</summary>

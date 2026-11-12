@@ -115,7 +115,7 @@ function strike(game, trip) {
     if (partner === 9) trip.echoed = true;
     effect = skills[partner - 1] + (matched ? '・刻印共鳴' : '');
   }
-  trip.message = effect || '勇者出招';
+  trip.message = effect || '吟遊詩人出招';
   trip.hp = Math.max(0, trip.hp - damage);
   trip.strike = 0.45;
 }
