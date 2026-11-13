@@ -309,6 +309,10 @@ summary:focus-visible {
   background: var(--gold);
   box-shadow: 0 0 0 3px #74623e;
 }
+.map-pin.cleared:before {
+  background: #fff;
+  border-color: #fff;
+}
 .realm-card {
   display: flex;
   flex-direction: column;

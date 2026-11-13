@@ -175,6 +175,7 @@ export function camp(game, persist) {
     pins.forEach((pin, id) => {
       selected(pin, id === preview);
       pin.classList.toggle('locked', !available(game, id));
+      pin.classList.toggle('cleared', game.cleared.includes(id));
       pin.title =
         realms[id].name +
         ' · ' +
