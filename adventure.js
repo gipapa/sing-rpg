@@ -137,6 +137,16 @@ function victory(game, trip) {
   return 'loot';
 }
 // Mutations for each transition are saved together by the caller, including the final reward and recruit.
+export function castSpell(game, spell) {
+  const trip = game.runs[game.country];
+  if (game.story !== null || trip?.stage !== 'battle' || trip.hp <= 0) return;
+  const damage = Math.min(trip.hp, spell.damage ?? 6);
+  trip.hp -= damage;
+  trip.strike = .45;
+  trip.message = spell.name + ' · 傷害 ' + damage;
+  return trip.hp > 0 ? 'hit' : victory(game, trip);
+}
+
 export function advance(game, dt, attacking) {
   if (game.story !== null) return;
   const trip = game.runs[game.country];

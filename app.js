@@ -1,5 +1,5 @@
-import {draw} from './scene.js';
-import {advance,newTrip,currentArea} from './adventure.js';
+import {draw,portrait} from './scene.js';
+import {advance,newTrip,currentArea,castSpell} from './adventure.js';
 import {listen} from './mic.js';
 import {battleScreenLock} from './screen.js';
 import {realms,monsters,equipment,companions,newGame,available,travelingParty} from './catalog.js';
@@ -31,7 +31,31 @@ $('playlistForm').onsubmit=event=>{
 };
 const saveKey = 'eight-realms-v1';
 const data = read(saveKey) || newGame();
-const drums = battleDrums($('field'), data);
+const drums = battleDrums($('field'), data, showSpell);
+let cutInAnimation;
+function showSpell(style) {
+  const trip = data.runs[data.country];
+  const previousHp = trip.hp;
+  const event = castSpell(data, style.spell);
+  const damage = event ? previousHp - trip.hp : 0;
+  $('cutInName').textContent = data.name;
+  $('cutInSpell').textContent = style.spell.name;
+  $('cutInDamage').textContent = damage ? '傷害 ' + damage : '';
+  $('cutInPhoto').hidden = !data.heroPortrait;
+  $('cutInPortrait').hidden = !!data.heroPortrait;
+  if (data.heroPortrait) $('cutInPhoto').src = data.heroPortrait;
+  else portrait($('cutInPortrait'), data.loadouts[0], 0, true);
+  const panel = $('spellCutIn');
+  panel.style.setProperty('--spell-color', style.color);
+  cutInAnimation?.cancel();
+  cutInAnimation = panel.animate([
+    { opacity: 0, transform: lessMotion.matches ? 'none' : 'translateX(-20px)' },
+    { opacity: 1, transform: 'none', offset: .12 },
+    { opacity: 1, transform: 'none', offset: .78 },
+    { opacity: 0, transform: lessMotion.matches ? 'none' : 'translateX(20px)' }
+  ], { duration: 1200 });
+  handleBattleEvent(event, performance.now());
+}
 function persist() {
   save(saveKey, data);
 }
@@ -123,6 +147,9 @@ function tick() {
   voice = mic?.sample(dt) ?? false;
   drums.sing(dt, voice);
   const event = advance(data, dt, !mic || voice);
+  handleBattleEvent(event, now);
+}
+function handleBattleEvent(event, now) {
   if (event || now - lastSaved >= 3000) {
     persist();
     lastSaved = now;
@@ -140,6 +167,7 @@ function tick() {
   renderBattle();
 }
 function returnToCamp() {
+  cutInAnimation?.cancel();
   drums.stop();
   running = false;
   lobby.stopStory();

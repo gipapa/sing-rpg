@@ -10,7 +10,7 @@ import {
   monsters,
   equipment
 } from '../catalog.js';
-import { newTrip, advance, currentArea } from '../adventure.js';
+import { newTrip, advance, currentArea, castSpell } from '../adventure.js';
 
 function nextEvent(game, wanted) {
   for (let i = 0; i < 2000; i++) {
@@ -20,6 +20,31 @@ function nextEvent(game, wanted) {
   }
   assert.fail('timed out waiting for ' + wanted);
 }
+
+test('spells damage enemies, award lethal loot once, and complete boss stories', () => {
+  const game = newGame();
+  game.story = null;
+  game.runs[0] = newTrip(0);
+  const spell = { name: '測試招式', damage: 6 };
+  assert.equal(castSpell(game, spell), undefined);
+  nextEvent(game, 'battle');
+  const trip = game.runs[0], hp = trip.hp;
+  assert.equal(castSpell(game, spell), 'hit');
+  assert.equal(trip.hp, hp - 6);
+  assert.equal(castSpell(game, spell), 'loot');
+  assert.equal(game.total, 1);
+  assert.equal(castSpell(game, spell), undefined);
+  assert.equal(game.total, 1);
+  trip.step = 11;
+  trip.stage = 'travel';
+  trip.remaining = 0;
+  advance(game, .1, false);
+  trip.hp = 2;
+  assert.equal(castSpell(game, spell), 'chapter');
+  assert.equal(game.story, 0);
+  assert.equal(game.total, 2);
+  assert.equal(castSpell(game, spell), undefined);
+});
 
 test('the atlas has unique names and every local encounter and drop pool exists', () => {
   const regions = new Set();

@@ -42,7 +42,7 @@ function soundDrum(context, volume) {
   tone.stop(t + .26);
 }
 
-export function battleDrums(field, game) {
+export function battleDrums(field, game, onCast = () => {}) {
   const hud = field.querySelector('#drumHud');
   const label = field.querySelector('#drumLabel');
   const meter = field.querySelector('#drumMeter');
@@ -62,6 +62,7 @@ export function battleDrums(field, game) {
     if (result.cast) {
       castAt = now;
       feedbackUntil = castAt + style.spell.duration;
+      onCast(style);
     }
     renderMeter();
   }

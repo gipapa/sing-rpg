@@ -1,4 +1,4 @@
-// Each score describes one cosmetic spell. Its drawing receives progress from 0 to 1.
+// Each score can set damage (default 6). Drawing receives progress from 0 to 1.
 export const drumSpells = [
   { id: 'stars', name: '星弦落雨', duration: 1500, color: '#ffd285', count: 19, draw: stars },
   { id: 'rings', name: '月輪和鳴', duration: 1650, color: '#a1dcf2', count: 3, draw: rings },

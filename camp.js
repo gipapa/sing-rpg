@@ -33,6 +33,46 @@ function selected(el, on) {
   el.setAttribute('aria-pressed', String(on));
 }
 export function camp(game, persist) {
+  function renderHeroPortrait() {
+    $('heroPhotoPreview').hidden = !game.heroPortrait;
+    $('heroPortraitPreview').hidden = !!game.heroPortrait;
+    if (game.heroPortrait) $('heroPhotoPreview').src = game.heroPortrait;
+    else portrait($('heroPortraitPreview'), game.loadouts[0], 0, true);
+  }
+  renderHeroPortrait();
+  $('heroPortraitFile').onchange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    $('heroPortraitFile').disabled = true;
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const size = Math.min(bitmap.width, bitmap.height);
+      canvas.getContext('2d').drawImage(bitmap,
+        (bitmap.width - size) / 2, (bitmap.height - size) / 2, size, size, 0, 0, 256, 256);
+      const image = canvas.toDataURL('image/jpeg', .85);
+      // Verify storage before replacing the current portrait.
+      localStorage.setItem('sing-rpg.eight-realms-v1', JSON.stringify({ ...game, heroPortrait: image }));
+      game.heroPortrait = image;
+      persist();
+      renderHeroPortrait();
+      $('portraitStatus').textContent = '已儲存，放招時會使用這張圖片。';
+    } catch {
+      $('portraitStatus').textContent = '圖片無法讀取或儲存，請換一張較小的圖片再試。';
+    } finally {
+      bitmap?.close();
+      $('heroPortraitFile').disabled = false;
+      $('heroPortraitFile').value = '';
+    }
+  };
+  $('resetHeroPortrait').onclick = () => {
+    delete game.heroPortrait;
+    persist();
+    renderHeroPortrait();
+    $('portraitStatus').textContent = '已改用角色外觀。';
+  };
   const echo = echoSettings(game);
   $('echoEnabled').checked = echo.enabled;
   $('echoDelay').value = echo.delay;
@@ -336,6 +376,7 @@ export function camp(game, persist) {
     if (tab === 'crew') renderCrew();
     if (tab === 'books') renderBook();
     if (tab === 'settings') {
+      renderHeroPortrait();
       $('heroName').value = game.name;
       $('nameStatus').textContent = '';
     }

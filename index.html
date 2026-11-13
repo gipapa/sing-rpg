@@ -126,6 +126,15 @@
           <p id="nameStatus" role="status"></p>
         </form>
         <div class="panel drum-settings">
+          <h2>招式大頭照</h2>
+          <canvas id="heroPortraitPreview" width="42" height="46" aria-label="目前招式大頭照"></canvas>
+          <img id="heroPhotoPreview" alt="自訂招式大頭照" hidden />
+          <label for="heroPortraitFile">上傳圖片</label>
+          <input id="heroPortraitFile" type="file" accept="image/*" />
+          <button id="resetHeroPortrait" type="button">使用角色外觀</button>
+          <p id="portraitStatus" role="status"></p>
+        </div>
+        <div class="panel drum-settings">
           <h2>打鼓招式</h2>
           <p>敲鼓每下、有效歌聲每累積一秒隨機集氣 1–5%，集滿自動放招。集氣持續到本次回營。</p>
           <label for="drumSpell">招式</label>
@@ -157,6 +166,11 @@
             <span id="drumMeter" role="progressbar" aria-labelledby="drumLabel" aria-valuemin="0" aria-valuenow="0"></span>
           </div>
           <span id="drumRipple" aria-hidden="true"></span>
+          <div id="spellCutIn" aria-hidden="true">
+            <canvas id="cutInPortrait" width="42" height="46"></canvas>
+            <img id="cutInPhoto" alt="" hidden />
+            <div><small id="cutInName"></small><strong id="cutInSpell"></strong><span id="cutInDamage"></span></div>
+          </div>
           <div class="caption">
             <small id="routeName">苔冠王國</small>
             <h1 id="location">鹿角林道</h1>

@@ -959,6 +959,55 @@ body.on-quest {
 .drum-settings h2 { font-size: 20px; }
 .drum-settings p { color: var(--dim); margin: 8px 0 12px; }
 .drum-settings select { margin: 4px 14px 4px 5px; }
+#heroPortraitPreview,
+#heroPhotoPreview {
+  display: block;
+  width: 84px;
+  height: 92px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  margin: 12px 0;
+  background: #263438;
+  border-radius: 6px;
+}
+#heroPhotoPreview { image-rendering: auto; }
+#heroPortraitFile { max-width: 100%; margin: 8px 0; }
+#spellCutIn {
+  position: absolute;
+  top: 30%;
+  left: 0;
+  width: min(440px, 94%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 20px;
+  background: linear-gradient(100deg, #111c2af5 75%, #111c2ac9);
+  border-block: 2px solid var(--spell-color, #ffd285);
+  box-shadow: 0 8px 28px #0006;
+  color: var(--spell-color, #ffd285);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+#spellCutIn canvas,
+#spellCutIn img {
+  flex: none;
+  width: 108px;
+  height: 118px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+#spellCutIn canvas { image-rendering: pixelated; }
+#spellCutIn div { min-width: 0; overflow-wrap: anywhere; }
+#spellCutIn small,
+#spellCutIn strong,
+#spellCutIn span { display: block; }
+#spellCutIn strong { font: 28px var(--serif); margin-block: 5px; }
+#spellCutIn small { color: #e4e4d6; }
+@media (orientation: landscape) and (max-height: 540px) {
+  #spellCutIn { top: 30%; padding-block: 6px; }
+  #spellCutIn canvas, #spellCutIn img { width: 72px; height: 79px; }
+}
 .drum-volume {
   display: flex;
   align-items: center;

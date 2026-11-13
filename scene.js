@@ -405,10 +405,16 @@ export function draw({ time, country, area, loadouts, party, stage, foe, strike,
   ctx.restore();
   if (drumEffect) drawDrumSpell(ctx, drumEffect.style, drumEffect.progress, W / 2, 178, visibleWidth);
 }
-export function portrait(canvas, gear, person) {
+export function portrait(canvas, gear, person, closeUp = false) {
   const c = canvas.getContext('2d');
   c.clearRect(0, 0, canvas.width, canvas.height);
-  hero(c, 17, 43, gear, person, false, 0);
+  c.save();
+  if (closeUp) {
+    c.translate(21, 68);
+    c.scale(2, 2);
+    hero(c, 0, 0, gear, person, false, 0);
+  } else hero(c, 17, 43, gear, person, false, 0);
+  c.restore();
 }
 export function journalIcon(canvas, entry, isMonster) {
   const c = canvas.getContext('2d');
