@@ -1122,6 +1122,81 @@ body.on-quest {
   border-radius: 4px;
 }
 #spellCutIn canvas { image-rendering: pixelated; }
+
+/* Keep the adventure visible alongside the score during battle. */
+body.songbook-battle { --score-panel-width: min(680px, 54vw); }
+.on-quest.songbook-battle > header,
+.on-quest.songbook-battle main > :not(.field) { visibility: hidden; }
+.on-quest.songbook-battle .field {
+  right: calc(var(--score-panel-width) + 24px);
+  width: auto;
+}
+.on-quest.songbook-battle #songbookDialog {
+  position: fixed;
+  inset: 12px 12px 12px auto;
+  z-index: 30;
+  width: var(--score-panel-width);
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 14px;
+  gap: 10px;
+  background: linear-gradient(150deg, #15231bf5, #101a16ed);
+  border-color: #a5cfb742;
+  box-shadow: 0 14px 48px #030b0755;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.songbook-battle #songbookDialog::backdrop { background: transparent; }
+.songbook-battle .songbook-heading small { display: none; }
+.songbook-battle .songbook-heading h2 { font-size: 19px; }
+.songbook-battle .songbook-heading button { min-height: 40px; font-size: 13px; }
+.songbook-battle #songbookReader { flex: 1; min-height: 0; gap: 0; }
+.songbook-battle #scoreViewport {
+  flex: 1;
+  min-height: 80px;
+  height: auto;
+  padding: 12px 16px 80px;
+  background: #0c171066;
+  border-color: #a5cfb726;
+}
+.songbook-battle #scoreTitle { display: none; }
+.songbook-battle #scoreMeta { margin: 0 0 12px; font-size: 12px; }
+.songbook-battle #scoreContent { text-shadow: 0 1px 3px #07100b99; }
+.songbook-battle .score-picker select { min-height: 40px; font-size: 14px; }
+.songbook-battle .songbook-footer { padding-top: 2px; }
+.on-quest.songbook-battle .battle-tools {
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  right: auto;
+  gap: 6px;
+  flex-direction: row;
+}
+.songbook-battle #scoreToggle { display: none; }
+.songbook-battle #screenStatus { max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.on-quest.songbook-battle #returnCamp { right: 12px; font-size: 13px; }
+.on-quest.songbook-battle .caption { top: 66px; left: 12px; max-width: calc(75% - 24px); }
+.on-quest.songbook-battle .caption h1 { font-size: 24px; line-height: 1.2; }
+.songbook-battle .caption span { display: none; }
+.on-quest.songbook-battle .scene > .hp { top: 80px; right: 12px; width: 25%; }
+.songbook-battle #drumHud { padding: 4px 6px; gap: 3px; left: 12px; bottom: 8px; font-size: 10px; }
+.songbook-battle #drumMeter { width: 64px; height: 4px; }
+.on-quest.songbook-battle .readout { padding: 8px 12px; gap: 3px 10px; flex-wrap: wrap; }
+.songbook-battle #battleHint { font-size: 11px; }
+.on-quest.songbook-battle #phase { right: 12px; bottom: 8px; font-size: 11px; }
+@media (orientation: portrait) {
+  .on-quest.songbook-battle .field { right: 0; bottom: auto; height: 40dvh; }
+  .on-quest.songbook-battle #songbookDialog { inset: calc(40dvh + 6px) 8px 8px; width: auto; padding: 12px; gap: 8px; }
+}
+@media (orientation: landscape) and (max-width: 760px) {
+  .songbook-battle #screenStatus { display: none; }
+  .on-quest.songbook-battle .caption h1 { font-size: 21px; }
+}
+@media (max-height: 700px) {
+  .songbook-battle .songbook-heading { position: absolute; top: 12px; right: 12px; }
+  .songbook-battle .songbook-heading > div { display: none; }
+  .songbook-battle .score-picker { padding-right: 92px; }
+}
 #spellCutIn div { min-width: 0; overflow-wrap: anywhere; }
 #spellCutIn small,
 #spellCutIn strong,

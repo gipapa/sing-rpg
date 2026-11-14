@@ -57,6 +57,14 @@ export function songbook() {
     $('songbookReader').hidden = !song;
     $('songbookEmpty').hidden = !!song;
     $('scoreEdit').textContent = song?.builtin ? '編輯副本' : '編輯';
+    $('closeSongbook').textContent = battle ? '收起歌本' : '關閉歌本';
+  }
+  function syncBattleLayout() {
+    document.body.classList.toggle('songbook-battle', battle && dialog.open);
+  }
+  function close() {
+    dialog.close(); syncBattleLayout();
+    if (battle) $('scoreToggle').focus({ preventScroll: true });
   }
   function setBusy(value) { busy = value; controls(); }
   function rememberSelected() {
@@ -113,7 +121,11 @@ export function songbook() {
     status(messages.join(' ') || timeline.error || (battle ? '' : '匯入與編輯的歌譜只保存在目前瀏覽器。可匯出備份，帶到另一台裝置。'));
   }
   async function open() {
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) {
+      if (battle) dialog.show();
+      else dialog.showModal();
+    }
+    syncBattleLayout();
     if (loading) return loading;
     if (busy) return;
     loading = load().finally(() => { loading = null; });
@@ -121,8 +133,14 @@ export function songbook() {
   }
   $('openSongbook').onclick = open;
   $('scoreToggle').onclick = open;
-  $('closeSongbook').onclick = () => dialog.close();
-  dialog.addEventListener('close', stopScroll);
+  $('closeSongbook').onclick = close;
+  $('musicToggle').addEventListener('click', () => { if (battle && dialog.open) close(); });
+  dialog.addEventListener('close', () => { stopScroll(); syncBattleLayout(); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && battle && dialog.open && !event.defaultPrevented && !document.querySelector('dialog:modal')) {
+      event.preventDefault(); close();
+    }
+  });
   $('scoreSong').onchange = () => {
     selected = $('scoreSong').value; prefs = readingSettings(settings.get(selected));
     rememberSelected(); render(); controls();
@@ -362,5 +380,8 @@ export function songbook() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopScroll(); });
   window.addEventListener('pagehide', stopScroll);
   controls();
-  return { setBattle(active) { battle = active; $('scoreSettings').open = false; controls(); } };
+  return { setBattle(active) {
+    if (battle !== active && dialog.open) close();
+    battle = active; $('scoreSettings').open = false; controls(); syncBattleLayout();
+  } };
 }
