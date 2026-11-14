@@ -56,6 +56,8 @@ Apple Music 完整播放取決於訂閱登入狀態與地區曲庫，未登入�
 
 戰場的「♬ 歌本」只提供選曲、顯示與捲動，沿用營地設定。自行播放音樂，在譜面下方按三角形播放，會依 BPM、拍號與小節拍數捲譜，暫停後可接續；不會追蹤外部音樂 App。沒有小節或拍數標記的舊譜會標示拍數估算。已附兩首明文原創示範，開啟即可閱讀，不需金鑰。支援曲中速度、拍號變更與逐行指定拍數。使用與備份方法見 [songs/README.md](./songs/README.md)。
 
+播放中點擊歌詞可跳到該句並繼續播放，上下滑動也會移動進度並維持播放。專案附有 [sing-rpg-chordpro skill](./.agents/skills/sing-rpg-chordpro/SKILL.md)，可用 `$sing-rpg-chordpro` 撰寫與驗證適用本讀譜器的歌譜。
+
 ## 技術簡介
 
 專案是純前端的靜態網頁，使用原生 HTML、CSS 與 JavaScript ES Modules，不依賴前端框架，也不需要建置流程或後端服務。GitHub Pages 從 main 分支根目錄部署。

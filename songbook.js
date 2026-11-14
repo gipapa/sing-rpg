@@ -1,7 +1,7 @@
 import { parseChordPro, transposeChord } from './chordpro.js';
 import { readingSettings, validateScore, validateCollection, importSongbook, exportSongbook, uniqueImports, maxBookBytes } from './songbook-data.js';
 import { loadSongLibrary, saveSongs, deleteSong, saveReadingSettings } from './songbook-store.js';
-import { scoreTimeline, timelinePosition, timelineTimeAt, scoreClock } from './score-timing.js';
+import { scoreTimeline, timelinePosition, timelineTimeAt, timelineEntryAtBlock, scoreClock } from './score-timing.js';
 
 const $ = id => document.getElementById(id);
 const newSource = '{title: 新歌曲}\n{artist: }\n{key: C}\n{capo: 0}\n{tempo: 90}\n{time: 4/4}\n\n{start_of_verse: 主歌}\n|[C]在這裡填入歌詞 |[G]與和弦 |\n{end_of_verse}\n';
@@ -11,7 +11,8 @@ export function songbook() {
   const dialog = $('songbookDialog'), editor = $('songEditor'), viewport = $('scoreViewport');
   let builtins = [], songs = [], settings = new Map(), selected = '', prefs = readingSettings();
   let battle = false, writable = false, busy = false, loaded = false, loading;
-  let frame = 0, positions = [], manualSeek = false, lastAppliedTop = 0, activeLine = null;
+  let frame = 0, positions = [], lastAppliedTop = 0, activeLine = null;
+  let gesture = null, suppressClick = false, manualUntil = 0;
   let renderedId = '', renderedSource = '', timeline = { entries: [], duration: 0, estimated: false };
   const clock = scoreClock();
   let editTarget = null, originalSource = '', editPrefs;
@@ -35,6 +36,7 @@ export function songbook() {
   function stopScroll() {
     clock.pause();
     cancelAnimationFrame(frame);
+    gesture = null; manualUntil = 0; suppressClick = false;
     playbackControls();
   }
   function controls() {
@@ -137,12 +139,12 @@ export function songbook() {
     }
     const song = parseChordPro(record.chordpro);
     timeline = scoreTimeline(song); clock.load(timeline.duration, resumeAt);
-    renderedId = record.id; renderedSource = record.chordpro; manualSeek = false;
+    renderedId = record.id; renderedSource = record.chordpro;
     $('scoreTitle').textContent = song.title;
     $('scoreMeta').textContent = [song.artist, song.key ? '調性 ' + transposeChord(song.key, prefs.shift) : '',
       song.capo ? 'Capo ' + song.capo : '', song.tempo ? song.tempo + ' BPM' : '', song.time ? song.time + ' 拍' : '',
       prefs.shift ? '移調 ' + (prefs.shift > 0 ? '+' : '') + prefs.shift : '原譜'].filter(Boolean).join(' · ');
-    $('scoreContent').replaceChildren(...song.blocks.map(block => {
+    $('scoreContent').replaceChildren(...song.blocks.map((block, blockIndex) => {
       const el = document.createElement(block.type === 'section' ? 'h3' : 'div');
       el.className = 'score-' + block.type;
       if (block.type === 'line') {
@@ -154,6 +156,13 @@ export function songbook() {
           segment.append(chord, lyric); el.append(segment);
         }
       } else el.textContent = block.text || '\u00a0';
+      if (timelineEntryAtBlock(timeline, blockIndex)) {
+        el.dataset.blockIndex = blockIndex;
+        el.tabIndex = 0;
+        el.setAttribute('role', 'button');
+        const lyric = block.tokens?.map(token => token.lyric).join('').replaceAll('|', '').trim();
+        el.setAttribute('aria-label', lyric ? '跳到：' + lyric.slice(0, 80) : '跳到這段樂譜');
+      }
       return el;
     }));
     $('scoreTransposeValue').textContent = prefs.shift > 0 ? '+' + prefs.shift : String(prefs.shift);
@@ -282,33 +291,73 @@ export function songbook() {
     });
     if (positions.length) positions.push(max);
   }
-  function applyPosition() {
+  function applyPosition(move = true) {
     const at = timelinePosition(timeline, positions, clock.position());
-    viewport.scrollTop = at.top; lastAppliedTop = viewport.scrollTop;
+    if (move) { viewport.scrollTop = at.top; lastAppliedTop = viewport.scrollTop; }
     const row = at.index >= 0 ? $('scoreContent').children[timeline.entries[at.index].blockIndex] : null;
     if (activeLine !== row) { activeLine?.classList.remove('score-current'); row?.classList.add('score-current'); activeLine = row; }
     playbackControls();
   }
   function scroll() {
     if (!clock.playing) return;
-    applyPosition();
-    if (clock.position() >= timeline.duration) { stopScroll(); return; }
+    const interacting = gesture !== null || performance.now() < manualUntil;
+    applyPosition(!interacting);
+    if (!interacting && clock.position() >= timeline.duration) { stopScroll(); return; }
     frame = requestAnimationFrame(scroll);
   }
   $('scorePlay').onclick = () => {
     if (busy || !timeline.entries.length || clock.playing) return;
     measurePositions();
-    if (manualSeek && Math.abs(viewport.scrollTop - lastAppliedTop) > 2) clock.seek(timelineTimeAt(timeline, positions, viewport.scrollTop));
-    manualSeek = false; clock.play(); applyPosition(); frame = requestAnimationFrame(scroll);
+    if (Math.abs(viewport.scrollTop - lastAppliedTop) > 1) clock.seek(timelineTimeAt(timeline, positions, viewport.scrollTop));
+    gesture = null; manualUntil = 0; clock.play(); applyPosition(); frame = requestAnimationFrame(scroll);
   };
   $('scorePause').onclick = stopScroll;
-  function manualPause() { manualSeek = true; stopScroll(); }
-  viewport.addEventListener('wheel', manualPause, { passive: true });
-  viewport.addEventListener('touchstart', manualPause, { passive: true });
-  viewport.addEventListener('pointerdown', manualPause, { passive: true });
+  // Native wheel/touch/scrollbar movement seeks without pausing the musical clock.
+  // Defer automatic pixel writes until the gesture and its momentum settle.
+  viewport.addEventListener('wheel', () => { manualUntil = performance.now() + 180; }, { passive: true });
+  viewport.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+    suppressClick = false;
+  }, { passive: true });
+  window.addEventListener('pointermove', event => {
+    if (gesture?.id === event.pointerId && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 6) gesture.moved = true;
+  }, { passive: true });
+  function finishGesture(event) {
+    if (gesture?.id !== event.pointerId) return;
+    suppressClick = gesture.moved || event.type === 'pointercancel';
+    gesture = null; manualUntil = performance.now() + 180;
+  }
+  window.addEventListener('pointerup', finishGesture, { passive: true });
+  window.addEventListener('pointercancel', finishGesture, { passive: true });
+  window.addEventListener('blur', () => { if (gesture) { gesture = null; suppressClick = true; manualUntil = performance.now() + 180; } });
+  viewport.addEventListener('scroll', () => {
+    // A scroll event from our own animation must not seek the clock back.
+    if (!timeline.entries.length || Math.abs(viewport.scrollTop - lastAppliedTop) <= 1) return;
+    clock.seek(timelineTimeAt(timeline, positions, viewport.scrollTop));
+    lastAppliedTop = viewport.scrollTop; manualUntil = performance.now() + 180;
+    applyPosition(false);
+  }, { passive: true });
+  function seekRow(row) {
+    if (busy || !row || row.parentElement !== $('scoreContent')) return;
+    const entry = timelineEntryAtBlock(timeline, Number(row.dataset.blockIndex));
+    if (!entry) return;
+    gesture = null; manualUntil = 0;
+    clock.seek(entry.start); applyPosition();
+  }
+  viewport.addEventListener('click', event => {
+    if (suppressClick) { suppressClick = false; return; }
+    seekRow(event.target.closest('[data-block-index]'));
+  });
+  viewport.addEventListener('keydown', event => {
+    if (!['Enter', ' '].includes(event.key)) return;
+    const row = event.target.closest('[data-block-index]');
+    if (!row) return;
+    event.preventDefault(); seekRow(row);
+  });
   new ResizeObserver(() => {
     measurePositions();
-    if (clock.playing || (clock.position() > 0 && !manualSeek)) applyPosition();
+    if (!gesture && performance.now() >= manualUntil && (clock.playing || clock.position() > 0)) applyPosition();
   }).observe(viewport);
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopScroll(); });
   window.addEventListener('pagehide', stopScroll);

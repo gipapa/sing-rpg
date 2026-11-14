@@ -65,6 +65,17 @@ export function timelineTimeAt(timeline, positions, top) {
   }
   return timeline.entries.at(-1).start;
 }
+export function timelineEntryAtBlock(timeline, blockIndex) {
+  if (!Number.isInteger(blockIndex)) return null;
+  let low = 0, high = timeline.entries.length - 1;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2), entry = timeline.entries[mid];
+    if (blockIndex < entry.blockIndex) high = mid - 1;
+    else if (blockIndex > entry.endBlockIndex) low = mid + 1;
+    else return entry;
+  }
+  return null;
+}
 export function scoreClock(now = () => performance.now()) {
   let duration = 0, elapsed = 0, startedAt = null;
   const position = () => Math.min(duration, elapsed + (startedAt === null ? 0 : Math.max(0, now() - startedAt) / 1000));

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sing RPG ChordPro"
+  short_description: "為 Sing RPG 編寫、整理並驗證含 BPM、小節與拍數的 ChordPro 歌譜"
+  default_prompt: "使用 $sing-rpg-chordpro，將提供的歌詞與和弦整理成可依 BPM 捲動的歌譜，並驗證拍數與時長。"

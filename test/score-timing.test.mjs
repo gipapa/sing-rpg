@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseChordPro } from '../chordpro.js';
-import { scoreTimeline, timelinePosition, timelineTimeAt, scoreClock } from '../score-timing.js';
+import { scoreTimeline, timelinePosition, timelineTimeAt, timelineEntryAtBlock, scoreClock } from '../score-timing.js';
 
 const timed = source => scoreTimeline(parseChordPro(source));
 test('barlines and 4/4 meter count musical beats rather than chord changes', () => {
@@ -95,4 +95,29 @@ test('playback clamps to the end and can restart from the beginning', () => {
   clock.load(4, 1.5);
   assert.equal(clock.playing, false);
   assert.equal(clock.position(), 1.5);
+});
+test('lyric block activation seeks to its musical start across tempo changes', () => {
+  const score = timed('{tempo: 120}\n{time: 4/4}\n{start_of_verse: 主歌}\n|[C]第一行 |\n{tempo: 60}\n|[G]第二行 |');
+  assert.equal(timelineEntryAtBlock(score, 0), null);
+  assert.equal(timelineEntryAtBlock(score, score.entries[1].blockIndex).start, 2);
+  assert.equal(timelineEntryAtBlock(score, 999), null);
+  const tab = timed('{tempo: 120}\n{time: 4/4}\n{sot}\nE|--0--|\nB|-----|\n{eot}');
+  assert.equal(timelineEntryAtBlock(tab, tab.entries[0].endBlockIndex), tab.entries[0]);
+});
+test('seeking forward and backward while playing preserves playback and continues from the new time', () => {
+  let now = 0;
+  const clock = scoreClock(() => now);
+  const score = timed('{tempo: 120}\n{time: 4/4}\n|[C]第一行 |\n|[G]第二行 |\n|[Am]第三行 |');
+  clock.load(score.duration); clock.play(); now = 500;
+  clock.seek(score.entries[2].start);
+  assert.equal(clock.playing, true);
+  now += 250;
+  assert.equal(clock.position(), 4.25);
+  clock.seek(timelineTimeAt(score, [0, 100, 200, 300], 50));
+  assert.equal(clock.playing, true);
+  now += 500;
+  assert.equal(clock.position(), 1.5);
+  clock.pause(); clock.seek(score.entries[1].start); now += 1000;
+  assert.equal(clock.playing, false);
+  assert.equal(clock.position(), 2);
 });
