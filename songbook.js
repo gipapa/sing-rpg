@@ -1,32 +1,47 @@
 import { parseChordPro, transposeChord } from './chordpro.js';
 import { readingSettings, validateScore, validateCollection, importSongbook, exportSongbook, uniqueImports, maxBookBytes } from './songbook-data.js';
 import { loadSongLibrary, saveSongs, deleteSong, saveReadingSettings } from './songbook-store.js';
+import { scoreTimeline, timelinePosition, timelineTimeAt, scoreClock } from './score-timing.js';
 
 const $ = id => document.getElementById(id);
-const newSource = '{title: 新歌曲}\n{artist: }\n{key: C}\n{capo: 0}\n{tempo: 90}\n{time: 4/4}\n\n{start_of_verse: 主歌}\n[C]在這裡填入歌詞與和弦\n{end_of_verse}\n';
+const newSource = '{title: 新歌曲}\n{artist: }\n{key: C}\n{capo: 0}\n{tempo: 90}\n{time: 4/4}\n\n{start_of_verse: 主歌}\n|[C]在這裡填入歌詞 |[G]與和弦 |\n{end_of_verse}\n';
 const newId = () => 'user-' + crypto.randomUUID();
 
 export function songbook() {
   const dialog = $('songbookDialog'), editor = $('songEditor'), viewport = $('scoreViewport');
   let builtins = [], songs = [], settings = new Map(), selected = '', prefs = readingSettings();
   let battle = false, writable = false, busy = false, loaded = false, loading;
-  let scrolling = false, frame = 0, previous = 0, scrollPosition = 0;
+  let frame = 0, positions = [], manualSeek = false, lastAppliedTop = 0, activeLine = null;
+  let renderedId = '', renderedSource = '', timeline = { entries: [], duration: 0, estimated: false };
+  const clock = scoreClock();
   let editTarget = null, originalSource = '', editPrefs;
   let lastSelected;
   try { lastSelected = localStorage.getItem('sing-rpg.songbook-selected'); } catch { /* Optional. */ }
   const current = () => songs.find(song => song.id === selected);
   const dirty = () => editor.open && $('scoreSource').value !== originalSource;
-  function status(message) { $('songbookStatus').textContent = message; }
+  function status(message) {
+    const timingError = current() ? timeline.error : '';
+    const text = [message, timingError && !message.includes(timingError) ? timingError : ''].filter(Boolean).join(' ');
+    $('songbookStatus').textContent = text; $('songbookStatus').hidden = !text;
+  }
+  const formatTime = seconds => Math.floor(seconds / 60) + ':' + String(Math.floor(seconds % 60)).padStart(2, '0');
+  function playbackControls() {
+    $('scorePlay').disabled = busy || !timeline.entries.length || clock.playing;
+    $('scorePause').disabled = !clock.playing;
+    $('scoreProgress').textContent = timeline.entries.length ? formatTime(clock.position()) + ' / ' + formatTime(timeline.duration) : '';
+    $('scoreTimingMode').textContent = timeline.entries.length ? (timeline.estimated ? '拍數估算' : '共 ' + Number(timeline.totalBeats.toFixed(2)) + ' 拍') : '';
+    $('scoreTimingMode').title = timeline.estimated ? '未標小節或拍數的段落，先按每個和弦一小節估算；可在營區補上小節線或 {beats: 8}。' : '拍數以四分音符為單位。';
+  }
   function stopScroll() {
-    scrolling = false;
+    clock.pause();
     cancelAnimationFrame(frame);
-    $('scoreScroll').textContent = '開始捲動';
-    $('scoreScroll').setAttribute('aria-pressed', 'false');
+    playbackControls();
   }
   function controls() {
     const song = current();
     $('songbookManagement').hidden = battle;
     $('scoreSettings').hidden = battle;
+    $('scoreToolbar').hidden = battle;
     for (const el of $('songbookManagement').querySelectorAll('button, input')) el.disabled = busy;
     $('scoreNew').disabled = busy || !writable;
     $('scoreImportButton').disabled = busy || !writable;
@@ -36,7 +51,7 @@ export function songbook() {
     $('scoreExportSong').disabled = busy || !song;
     $('scoreExportBook').disabled = busy || !songs.some(song => !song.builtin);
     $('scoreSong').disabled = busy || !songs.length;
-    $('scoreScroll').disabled = !song;
+    playbackControls();
     $('songbookReader').hidden = !song;
     $('songbookEmpty').hidden = !!song;
     $('scoreEdit').textContent = song?.builtin ? '編輯副本' : '編輯';
@@ -93,7 +108,7 @@ export function songbook() {
       renderOptions(); messages.push(error.message);
     }
     setBusy(false);
-    status(messages.join(' ') || (battle ? '自行播放音樂，選好譜後開始捲動。' : '匯入與編輯的歌譜只保存在目前瀏覽器。可匯出備份，帶到另一台裝置。'));
+    status(messages.join(' ') || timeline.error || (battle ? '' : '匯入與編輯的歌譜只保存在目前瀏覽器。可匯出備份，帶到另一台裝置。'));
   }
   async function open() {
     if (!dialog.open) dialog.showModal();
@@ -109,12 +124,20 @@ export function songbook() {
   $('scoreSong').onchange = () => {
     selected = $('scoreSong').value; prefs = readingSettings(settings.get(selected));
     rememberSelected(); render(); controls();
+    status(timeline.error || '');
   };
   function render() {
     stopScroll();
     const record = current();
-    if (!record) { $('scoreContent').replaceChildren(); $('scoreTitle').textContent = ''; $('scoreMeta').textContent = ''; return; }
+    const resumeAt = record?.id === renderedId && record?.chordpro === renderedSource ? clock.position() : 0;
+    activeLine?.classList.remove('score-current'); activeLine = null;
+    if (!record) {
+      timeline = { entries: [], duration: 0, estimated: false }; clock.load(0); positions = [];
+      $('scoreContent').replaceChildren(); $('scoreTitle').textContent = ''; $('scoreMeta').textContent = ''; playbackControls(); return;
+    }
     const song = parseChordPro(record.chordpro);
+    timeline = scoreTimeline(song); clock.load(timeline.duration, resumeAt);
+    renderedId = record.id; renderedSource = record.chordpro; manualSeek = false;
     $('scoreTitle').textContent = song.title;
     $('scoreMeta').textContent = [song.artist, song.key ? '調性 ' + transposeChord(song.key, prefs.shift) : '',
       song.capo ? 'Capo ' + song.capo : '', song.tempo ? song.tempo + ' BPM' : '', song.time ? song.time + ' 拍' : '',
@@ -137,8 +160,11 @@ export function songbook() {
     $('scoreLower').disabled = prefs.shift <= -12; $('scoreHigher').disabled = prefs.shift >= 12;
     $('scoreFont').value = prefs.font; $('scoreFontValue').value = prefs.font + ' px';
     $('scoreContent').style.fontSize = prefs.font + 'px';
-    $('scoreSpeed').value = prefs.speed; $('scoreSpeedValue').value = prefs.speed + ' px/s';
     viewport.scrollTop = 0;
+    measurePositions();
+    if (resumeAt > 0) applyPosition();
+    else lastAppliedTop = 0;
+    playbackControls();
   }
   function persistPreferences() {
     settings.set(selected, { ...prefs });
@@ -150,9 +176,6 @@ export function songbook() {
   $('scoreHigher').onclick = () => transpose(1);
   $('scoreReset').onclick = () => transpose(-prefs.shift);
   $('scoreFont').oninput = () => { if (battle) return; prefs.font = Number($('scoreFont').value); render(); persistPreferences(); };
-  $('scoreSpeed').oninput = () => {
-    prefs.speed = Number($('scoreSpeed').value); $('scoreSpeedValue').value = prefs.speed + ' px/s'; persistPreferences();
-  };
   dialog.addEventListener('click', event => { if (!event.target.closest('#scoreSettings')) $('scoreSettings').open = false; });
   function download(text, filename, type) {
     const url = URL.createObjectURL(new Blob([text], { type })), link = document.createElement('a');
@@ -250,21 +273,43 @@ export function songbook() {
     catch (error) { status(error.message); $('deleteScoreDialog').close(); }
     finally { setBusy(false); }
   };
-  function scroll(now) {
-    if (!scrolling) return;
-    scrollPosition += prefs.speed * Math.min(.1, (now - previous) / 1000);
-    viewport.scrollTop = scrollPosition; previous = now;
-    if (viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1) { stopScroll(); return; }
+  function measurePositions() {
+    const top = viewport.getBoundingClientRect().top;
+    const max = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+    positions = timeline.entries.map(entry => {
+      const row = $('scoreContent').children[entry.blockIndex];
+      return Math.max(0, Math.min(max, row.getBoundingClientRect().top - top + viewport.scrollTop - viewport.clientHeight * .25));
+    });
+    if (positions.length) positions.push(max);
+  }
+  function applyPosition() {
+    const at = timelinePosition(timeline, positions, clock.position());
+    viewport.scrollTop = at.top; lastAppliedTop = viewport.scrollTop;
+    const row = at.index >= 0 ? $('scoreContent').children[timeline.entries[at.index].blockIndex] : null;
+    if (activeLine !== row) { activeLine?.classList.remove('score-current'); row?.classList.add('score-current'); activeLine = row; }
+    playbackControls();
+  }
+  function scroll() {
+    if (!clock.playing) return;
+    applyPosition();
+    if (clock.position() >= timeline.duration) { stopScroll(); return; }
     frame = requestAnimationFrame(scroll);
   }
-  $('scoreScroll').onclick = () => {
-    if (scrolling) { stopScroll(); return; }
-    if (!current()) return;
-    scrolling = true; scrollPosition = viewport.scrollTop; previous = performance.now();
-    $('scoreScroll').textContent = '暫停捲動'; $('scoreScroll').setAttribute('aria-pressed', 'true'); frame = requestAnimationFrame(scroll);
+  $('scorePlay').onclick = () => {
+    if (busy || !timeline.entries.length || clock.playing) return;
+    measurePositions();
+    if (manualSeek && Math.abs(viewport.scrollTop - lastAppliedTop) > 2) clock.seek(timelineTimeAt(timeline, positions, viewport.scrollTop));
+    manualSeek = false; clock.play(); applyPosition(); frame = requestAnimationFrame(scroll);
   };
-  viewport.addEventListener('wheel', stopScroll, { passive: true });
-  viewport.addEventListener('touchstart', stopScroll, { passive: true });
+  $('scorePause').onclick = stopScroll;
+  function manualPause() { manualSeek = true; stopScroll(); }
+  viewport.addEventListener('wheel', manualPause, { passive: true });
+  viewport.addEventListener('touchstart', manualPause, { passive: true });
+  viewport.addEventListener('pointerdown', manualPause, { passive: true });
+  new ResizeObserver(() => {
+    measurePositions();
+    if (clock.playing || (clock.position() > 0 && !manualSeek)) applyPosition();
+  }).observe(viewport);
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopScroll(); });
   window.addEventListener('pagehide', stopScroll);
   controls();

@@ -54,7 +54,7 @@ Apple Music 完整播放取決於訂閱登入狀態與地區曲庫，未登入�
 
 營地的「歌本」可新增、編輯、匯入、刪除與匯出 ChordPro 譜，也能移調與調整字體。個人歌譜和每首歌的閱讀設定存於目前瀏覽器的 IndexedDB，不上傳到網站。可匯出單首 `.cho` 或整本 JSON 備份，在另一台裝置匯入。
 
-戰場的「♬ 歌本」只提供選曲、顯示與捲動，沿用營地設定。自行播放音樂，捲譜速度自行控制，不與歌曲時間同步。已附兩首明文原創示範，開啟即可閱讀，不需金鑰。支援 BPM、拍號與曲中速度變更。使用與備份方法見 [songs/README.md](./songs/README.md)。
+戰場的「♬ 歌本」只提供選曲、顯示與捲動，沿用營地設定。自行播放音樂，在譜面下方按三角形播放，會依 BPM、拍號與小節拍數捲譜，暫停後可接續；不會追蹤外部音樂 App。沒有小節或拍數標記的舊譜會標示拍數估算。已附兩首明文原創示範，開啟即可閱讀，不需金鑰。支援曲中速度、拍號變更與逐行指定拍數。使用與備份方法見 [songs/README.md](./songs/README.md)。
 
 ## 技術簡介
 
@@ -76,7 +76,7 @@ Apple Music 完整播放取決於訂閱登入狀態與地區曲庫，未登入�
 | `camp.js` | 地圖、夥伴整備、圖鑑、設定與故事介面 |
 | `scene.js` | Canvas 場景、角色與戰鬥動畫繪製 |
 | `mic.js`、`screen.js` | 麥克風分析與螢幕常亮管理 |
-| `songbook.js`、`chordpro.js`、`songbook-data.js`、`songbook-store.js` | 歌本管理、讀譜、匯入匯出與 IndexedDB 保存 |
+| `songbook.js`、`chordpro.js`、`score-timing.js`、`songbook-data.js`、`songbook-store.js` | 歌本管理、讀譜、BPM 捲譜計時、匯入匯出與 IndexedDB 保存 |
 | `drums.js`、`drum-spells.js` | 打鼓音效、百分比集氣與可自訂招式 |
 | `countdown.js` | 劇情與模式選單的自動前進倒數 |
 

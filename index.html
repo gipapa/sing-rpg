@@ -250,7 +250,7 @@
       </div>
       <p id="songbookEmpty">目前沒有可讀取的歌譜，請在營地匯入或新增。</p>
       <div id="songbookReader" hidden>
-        <div class="score-toolbar">
+        <div class="score-toolbar" id="scoreToolbar">
           <details id="scoreSettings">
             <summary>閱讀設定</summary>
             <div class="score-controls">
@@ -263,20 +263,25 @@
               <label for="scoreFont">字體 <output id="scoreFontValue" for="scoreFont"></output><input id="scoreFont" type="range" min="16" max="36" step="1" /></label>
             </div>
           </details>
-          <label class="score-speed" for="scoreSpeed">捲動 <output id="scoreSpeedValue" for="scoreSpeed"></output><input id="scoreSpeed" type="range" min="5" max="70" step="1" /></label>
-          <button type="button" id="scoreScroll" aria-pressed="false">開始捲動</button>
         </div>
         <div id="scoreViewport" tabindex="0" aria-label="歌詞與和弦譜">
           <h2 id="scoreTitle"></h2><p id="scoreMeta"></p>
           <div id="scoreContent"></div>
         </div>
       </div>
-      <p id="songbookStatus" role="status"></p>
+      <div class="songbook-footer">
+        <div id="scorePlayback" aria-label="捲譜播放控制">
+          <button type="button" id="scorePlay" aria-label="播放捲譜" title="播放捲譜" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z" /></svg></button>
+          <button type="button" id="scorePause" aria-label="暫停捲譜" title="暫停捲譜" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zm8 0h4v16h-4z" /></svg></button>
+          <output id="scoreProgress" aria-live="off"></output><small id="scoreTimingMode"></small>
+        </div>
+        <p id="songbookStatus" role="status" hidden></p>
+      </div>
     </dialog>
     <dialog id="songEditor" aria-labelledby="songEditorTitle">
       <form id="scoreEditorForm">
         <h2 id="songEditorTitle">編輯歌譜</h2>
-        <p class="editor-hint">用 [C]、[Am] 標記和弦；{tempo: 90} 記錄 BPM，{time: 4/4} 記錄拍號。</p>
+        <p class="editor-hint">用 [C] 標記和弦、| 分隔小節；{tempo: 90} 記錄 BPM，{time: 4/4} 記錄拍號。也可用 {beats: 8} 指定下一行的四分音符拍數。</p>
         <label for="scoreSource">ChordPro 歌詞與和弦</label>
         <textarea id="scoreSource" required spellcheck="false" autocapitalize="off"></textarea>
         <p id="scoreEditorStatus" role="status"></p>

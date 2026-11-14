@@ -1028,8 +1028,6 @@ body.on-quest {
 .score-transpose > span { min-width: 60px; text-align: center; }
 .score-controls label { display: grid; grid-template-columns: auto auto; gap: 2px 8px; font-size: 12px; color: var(--dim); }
 .score-controls input { width: 116px; grid-column: 1 / -1; accent-color: var(--mint); }
-.score-speed { display: grid; grid-template-columns: auto auto; gap: 2px 8px; color: var(--dim); font-size: 12px; margin-left: auto; }
-.score-speed input { grid-column: 1 / -1; width: 110px; accent-color: var(--mint); }
 .score-controls button { min-height: 44px; }
 #scoreViewport {
   overflow: auto;
@@ -1056,6 +1054,13 @@ body.on-quest {
 .score-space { height: .65em; }
 .score-tab { font: .7em/1.5 ui-monospace, SFMono-Regular, monospace; white-space: pre; }
 #songbookStatus { color: var(--dim); font-size: 13px; }
+.songbook-footer { display: flex; flex-direction: column; gap: 6px; }
+#scorePlayback { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#scorePlayback button { display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; }
+#scorePlayback svg { width: 22px; height: 22px; fill: currentColor; }
+#scoreProgress { color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+#scoreTimingMode { color: var(--dim); font-size: 12px; }
+.score-current { background: #a5cfb712; box-shadow: -3px 0 var(--mint); }
 #songEditor, #deleteScoreDialog {
   width: min(800px, calc(100% - 24px));
   max-height: calc(100dvh - 24px);

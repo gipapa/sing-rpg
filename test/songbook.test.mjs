@@ -6,7 +6,7 @@ import { importSongbook, exportSongbook, uniqueImports, readingSettings, validat
 
 const source = '{title: 測試歌曲}\n{artist: 測試作者}\n{tempo: 90}\n{time: 4/4}\n[C]原創測試文字 [G/B]第二段';
 test('plain songbook backup round trips the full source and per-song reading settings', () => {
-  const songs = [{ chordpro: source, settings: { font: 28, speed: 30, shift: -2 } }];
+  const songs = [{ chordpro: source, settings: { font: 28, shift: -2 } }];
   const backup = exportSongbook(songs);
   const restored = importSongbook(backup, 'backup.json');
   assert.deepEqual(restored, songs);
@@ -17,7 +17,7 @@ test('plain songbook backup round trips the full source and per-song reading set
 test('ChordPro file import retains Chinese lyrics, source formatting and slash chords', () => {
   const songs = importSongbook(source, '測試.cho');
   assert.equal(songs[0].chordpro, source);
-  assert.deepEqual(songs[0].settings, { font: 22, speed: 22, shift: 0 });
+  assert.deepEqual(songs[0].settings, { font: 22, shift: 0 });
 });
 test('invalid backups and oversize files fail before any storage operation', () => {
   assert.throws(() => importSongbook('{bad', 'backup.json'), /JSON/);
@@ -38,8 +38,8 @@ test('backup import ignores external IDs and clamps reading preferences', () => 
   const text = JSON.stringify({ format: 'sing-rpg-songbook', version: 2, songs: [{ id: 'overwrite', chordpro: source, settings: { font: 999, speed: -5, shift: 90 } }] });
   const [song] = importSongbook(text, 'backup.JSON');
   assert.equal(song.id, undefined);
-  assert.deepEqual(song.settings, { font: 36, speed: 5, shift: 12 });
-  assert.deepEqual(readingSettings({ font: NaN, speed: Infinity }), { font: 22, speed: 22, shift: 0 });
+  assert.deepEqual(song.settings, { font: 36, shift: 12 });
+  assert.deepEqual(readingSettings({ font: NaN, speed: Infinity }), { font: 22, shift: 0 });
 });
 test('ChordPro preserves Chinese word positions, sections and TAB', () => {
   const song = parseChordPro('\uFEFF{t: 示範}\r\n{artist: 作者}\n{key: C}\n{capo: 2}\n{start_of_verse: 第一段}\n[Cadd9]風 [G/B]吹來\n{end_of_verse}\n{soc}\n[Am7][F]星光\n{eoc}\n{sot}\nE--0--3--\n{eot}');

@@ -3,7 +3,7 @@ export const maxBookBytes = 10 * 1024 * 1024;
 const byteSize = text => new TextEncoder().encode(text).length;
 export function readingSettings(value = {}) {
   const bounded = (key, fallback, min, max) => Number.isFinite(value?.[key]) ? Math.max(min, Math.min(max, Math.round(value[key]))) : fallback;
-  return { font: bounded('font', 22, 16, 36), speed: bounded('speed', 22, 5, 70), shift: bounded('shift', 0, -12, 12) };
+  return { font: bounded('font', 22, 16, 36), shift: bounded('shift', 0, -12, 12) };
 }
 export function validateScore(source) {
   if (typeof source !== 'string' || !source.trim()) throw Error('歌譜內容不能空白。');

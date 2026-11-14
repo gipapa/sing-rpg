@@ -2,8 +2,13 @@
 // All content is rendered with textContent by songbook.js.
 export function parseChordPro(source) {
   const song = { title: '未命名歌曲', artist: '', key: '', capo: '', tempo: '', time: '', blocks: [] };
-  let tab = false, currentTempo = '';
-  const metadata = { title: 'title', t: 'title', artist: 'artist', a: 'artist', key: 'key', k: 'key', capo: 'capo', time: 'time' };
+  let tab = false, currentTempo = '', currentTime = '', nextBeats = null;
+  const metadata = { title: 'title', t: 'title', artist: 'artist', a: 'artist', key: 'key', k: 'key', capo: 'capo' };
+  function timing() {
+    const value = { tempo: Number(currentTempo) || null, time: currentTime, beats: nextBeats };
+    nextBeats = null;
+    return value;
+  }
   const sectionNames = { verse: '主歌', chorus: '副歌', bridge: '橋段', intro: '前奏', outro: '尾奏' };
   for (const line of source.replace(/^\uFEFF/, '').replaceAll('\r', '').split('\n')) {
     if (line.trimStart().startsWith('#')) continue;
@@ -19,6 +24,16 @@ export function parseChordPro(source) {
           currentTempo = String(tempo);
         }
       }
+      else if (name === 'time' || (name === 'meta' && /^time\s+/i.test(value))) {
+        const meter = name === 'meta' ? value.replace(/^time\s+/i, '') : value;
+        if (!song.time) song.time = meter;
+        else if (currentTime !== meter) song.blocks.push({ type: 'comment', text: '拍號變更：' + meter });
+        currentTime = meter;
+      }
+      else if (name === 'beats') {
+        const beats = Number(value);
+        if (Number.isFinite(beats) && beats > 0 && beats <= 4096) nextBeats = beats;
+      }
       else if (['comment', 'c', 'comment_italic', 'ci', 'subtitle', 'st'].includes(name)) song.blocks.push({ type: 'comment', text: value });
       else if (name === 'start_of_tab' || name === 'sot') tab = true;
       else if (name === 'end_of_tab' || name === 'eot') tab = false;
@@ -32,7 +47,7 @@ export function parseChordPro(source) {
       if (song.blocks.length && song.blocks.at(-1).type !== 'space') song.blocks.push({ type: 'space' });
       continue;
     }
-    if (tab) { song.blocks.push({ type: 'tab', text: line }); continue; }
+    if (tab) { song.blocks.push({ type: 'tab', text: line, timing: timing() }); continue; }
     const tokens = [];
     let offset = 0, chord = '';
     for (const match of line.matchAll(/\[([^\]\n]+)\]/g)) {
@@ -41,7 +56,7 @@ export function parseChordPro(source) {
       offset = match.index + match[0].length;
     }
     if (offset < line.length || chord) tokens.push({ chord, lyric: line.slice(offset) });
-    song.blocks.push({ type: 'line', tokens });
+    song.blocks.push({ type: 'line', tokens, raw: line, timing: timing() });
   }
   if (song.blocks.at(-1)?.type === 'space') song.blocks.pop();
   return song;
