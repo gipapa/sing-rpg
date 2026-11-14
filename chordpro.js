@@ -1,9 +1,9 @@
 // A small text-only ChordPro reader. Unsupported directives are ignored.
 // All content is rendered with textContent by songbook.js.
 export function parseChordPro(source) {
-  const song = { title: '未命名歌曲', artist: '', key: '', capo: '', blocks: [] };
-  let tab = false;
-  const metadata = { title: 'title', t: 'title', artist: 'artist', a: 'artist', key: 'key', k: 'key', capo: 'capo' };
+  const song = { title: '未命名歌曲', artist: '', key: '', capo: '', tempo: '', time: '', blocks: [] };
+  let tab = false, currentTempo = '';
+  const metadata = { title: 'title', t: 'title', artist: 'artist', a: 'artist', key: 'key', k: 'key', capo: 'capo', time: 'time' };
   const sectionNames = { verse: '主歌', chorus: '副歌', bridge: '橋段', intro: '前奏', outro: '尾奏' };
   for (const line of source.replace(/^\uFEFF/, '').replaceAll('\r', '').split('\n')) {
     if (line.trimStart().startsWith('#')) continue;
@@ -11,6 +11,14 @@ export function parseChordPro(source) {
     if (directive) {
       const name = directive[1].toLowerCase(), value = directive[2] || '';
       if (Object.hasOwn(metadata, name)) song[metadata[name]] = value;
+      else if (name === 'tempo' || (name === 'meta' && /^tempo\s+/i.test(value))) {
+        const tempo = Number(name === 'meta' ? value.replace(/^tempo\s+/i, '') : value);
+        if (Number.isFinite(tempo) && tempo > 0) {
+          if (!song.tempo) song.tempo = String(tempo);
+          else if (currentTempo !== String(tempo)) song.blocks.push({ type: 'comment', text: '速度變更：' + tempo + ' BPM' });
+          currentTempo = String(tempo);
+        }
+      }
       else if (['comment', 'c', 'comment_italic', 'ci', 'subtitle', 'st'].includes(name)) song.blocks.push({ type: 'comment', text: value });
       else if (name === 'start_of_tab' || name === 'sot') tab = true;
       else if (name === 'end_of_tab' || name === 'eot') tab = false;

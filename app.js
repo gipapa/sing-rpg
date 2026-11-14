@@ -61,7 +61,7 @@ function persist() {
   save(saveKey, data);
 }
 const lobby = camp(data, persist);
-songbook();
+const songbookUI = songbook();
 let mic = null,
   running = false,
   pending = false,
@@ -90,6 +90,7 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && document.body.classList.contains('music-open')) musicDrawer(false);
 });
 function focusBattle(on) {
+  songbookUI.setBattle(on);
   document.body.classList.toggle('on-quest', on);
   document.body.classList.remove('music-open');
   $('musicToggle').setAttribute('aria-expanded', 'false');

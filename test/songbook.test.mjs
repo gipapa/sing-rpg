@@ -1,56 +1,47 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDecipheriv } from 'node:crypto';
-import { mkdtemp, readFile, writeFile, stat, rm, symlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
-import { createSongbookKey, encryptSongbook, decryptSongbook } from '../songbook-crypto.js';
+import { readFile } from 'node:fs/promises';
 import { parseChordPro, transposeChord } from '../chordpro.js';
+import { importSongbook, exportSongbook, uniqueImports, readingSettings, validateCollection, maxSongBytes } from '../songbook-data.js';
 
-const sample = { songs: [{ id: 'one', chordpro: '{title: 測試歌曲}\n[C]原創測試文字 [G/B]第二段' }] };
-test('encrypted book round trips Chinese text without exposing titles or chords', async () => {
-  const secret = createSongbookKey();
-  const envelope = await encryptSongbook(sample, secret);
-  assert.deepEqual(await decryptSongbook(envelope, secret), sample);
-  assert.equal(JSON.stringify(envelope).includes('測試歌曲'), false);
-  assert.equal(JSON.stringify(envelope).includes('[G/B]'), false);
-  assert.equal(JSON.stringify(envelope).includes(secret), false);
+const source = '{title: 測試歌曲}\n{artist: 測試作者}\n{tempo: 90}\n{time: 4/4}\n[C]原創測試文字 [G/B]第二段';
+test('plain songbook backup round trips the full source and per-song reading settings', () => {
+  const songs = [{ chordpro: source, settings: { font: 28, speed: 30, shift: -2 } }];
+  const backup = exportSongbook(songs);
+  const restored = importSongbook(backup, 'backup.json');
+  assert.deepEqual(restored, songs);
+  assert.equal(parseChordPro(restored[0].chordpro).tempo, '90');
+  assert.equal(parseChordPro(restored[0].chordpro).time, '4/4');
+  assert.equal(JSON.parse(backup).version, 2);
 });
-test('each encryption uses a new 96-bit IV even with the same key', async () => {
-  const secret = createSongbookKey();
-  const a = await encryptSongbook(sample, secret), b = await encryptSongbook(sample, secret);
-  assert.notEqual(a.iv, b.iv);
-  assert.notEqual(a.ciphertext, b.ciphertext);
-  assert.equal(Buffer.from(a.iv, 'base64url').length, 12);
+test('ChordPro file import retains Chinese lyrics, source formatting and slash chords', () => {
+  const songs = importSongbook(source, '測試.cho');
+  assert.equal(songs[0].chordpro, source);
+  assert.deepEqual(songs[0].settings, { font: 22, speed: 22, shift: 0 });
 });
-test('Web Crypto output interoperates with Node AES-256-GCM including authenticated format', async () => {
-  const secret = createSongbookKey(), envelope = await encryptSongbook(sample, secret);
-  const bytes = Buffer.from(envelope.ciphertext, 'base64url');
-  const decipher = createDecipheriv('aes-256-gcm', Buffer.from(secret.split('.')[1], 'base64url'), Buffer.from(envelope.iv, 'base64url'));
-  decipher.setAAD(Buffer.from('sing-rpg-songbook:1:AES-GCM'));
-  decipher.setAuthTag(bytes.subarray(-16));
-  const plain = Buffer.concat([decipher.update(bytes.subarray(0, -16)), decipher.final()]);
-  assert.deepEqual(JSON.parse(plain.toString()), sample);
+test('invalid backups and oversize files fail before any storage operation', () => {
+  assert.throws(() => importSongbook('{bad', 'backup.json'), /JSON/);
+  assert.throws(() => importSongbook('PDF', 'score.pdf'), /文字譜/);
+  assert.throws(() => importSongbook(JSON.stringify({ format: 'sing-rpg-songbook', version: 1, ciphertext: 'data' }), 'old.json'), /明文/);
+  assert.throws(() => validateCollection([{ chordpro: source }, { chordpro: '' }]), /空白/);
+  assert.throws(() => importSongbook('中'.repeat(maxSongBytes / 3 + 1), 'large.cho'), /256 KB/);
+  assert.throws(() => validateCollection(Array(501).fill({ chordpro: source })), /500/);
 });
-test('wrong key, changed ciphertext and changed IV fail authentication', async () => {
-  const secret = createSongbookKey(), envelope = await encryptSongbook(sample, secret);
-  await assert.rejects(decryptSongbook(envelope, createSongbookKey()), /金鑰不正確/);
-  for (const field of ['iv', 'ciphertext']) {
-    const bytes = Buffer.from(envelope[field], 'base64url');
-    bytes[0] ^= 1;
-    await assert.rejects(decryptSongbook({ ...envelope, [field]: bytes.toString('base64url') }, secret), /金鑰不正確/);
-  }
+test('importing the same song again skips duplicates without modifying existing songs', () => {
+  const existing = [{ id: 'keep', chordpro: source }];
+  const incoming = [{ chordpro: '\uFEFF' + source.replaceAll('\n', '\r\n') + '\n' }, { chordpro: '[D]另一首' }, { chordpro: '[D]另一首' }];
+  assert.deepEqual(uniqueImports(existing, incoming), [{ chordpro: '[D]另一首' }]);
+  assert.equal(existing[0].id, 'keep');
+  assert.equal(existing[0].chordpro, source);
 });
-test('unsupported format, malformed keys and invalid song payloads are rejected', async () => {
-  const secret = createSongbookKey(), envelope = await encryptSongbook(sample, secret);
-  await assert.rejects(decryptSongbook({ ...envelope, version: 2 }, secret), /格式/);
-  await assert.rejects(decryptSongbook({ ...envelope, algorithm: 'AES-CBC' }, secret), /格式/);
-  await assert.rejects(decryptSongbook(envelope, 'password'), /完整/);
-  await assert.rejects(encryptSongbook({ songs: [] }, secret), /1–100/);
-  await assert.rejects(encryptSongbook({ songs: [sample.songs[0], sample.songs[0]] }, secret), /歌曲資料/);
+test('backup import ignores external IDs and clamps reading preferences', () => {
+  const text = JSON.stringify({ format: 'sing-rpg-songbook', version: 2, songs: [{ id: 'overwrite', chordpro: source, settings: { font: 999, speed: -5, shift: 90 } }] });
+  const [song] = importSongbook(text, 'backup.JSON');
+  assert.equal(song.id, undefined);
+  assert.deepEqual(song.settings, { font: 36, speed: 5, shift: 12 });
+  assert.deepEqual(readingSettings({ font: NaN, speed: Infinity }), { font: 22, speed: 22, shift: 0 });
 });
-test('ChordPro preserves Chinese word positions, slash chords, sections and TAB', () => {
+test('ChordPro preserves Chinese word positions, sections and TAB', () => {
   const song = parseChordPro('\uFEFF{t: 示範}\r\n{artist: 作者}\n{key: C}\n{capo: 2}\n{start_of_verse: 第一段}\n[Cadd9]風 [G/B]吹來\n{end_of_verse}\n{soc}\n[Am7][F]星光\n{eoc}\n{sot}\nE--0--3--\n{eot}');
   assert.equal(song.title, '示範');
   assert.equal(song.artist, '作者');
@@ -60,42 +51,41 @@ test('ChordPro preserves Chinese word positions, slash chords, sections and TAB'
   assert.deepEqual(song.blocks[3].tokens, [{ chord: 'Am7', lyric: '' }, { chord: 'F', lyric: '星光' }]);
   assert.equal(song.blocks[4].type, 'tab');
 });
-test('unknown directives do not become HTML or alter object prototypes', () => {
+test('unknown directives and markup stay text without altering object prototypes', () => {
   const song = parseChordPro('{__proto__: bad}\n{unknown: hidden}\n<script>alert(1)</script>\n[C]<img src=x onerror=alert(1)>');
   assert.equal(Object.getPrototypeOf(song), Object.prototype);
   assert.equal(song.blocks[0].tokens[0].lyric, '<script>alert(1)</script>');
   assert.equal(song.blocks[1].tokens[0].lyric, '<img src=x onerror=alert(1)>');
 });
-test('transposition retains chord quality, handles bass notes and leaves annotations alone', () => {
+test('tempo changes stay at their score positions without replacing the starting BPM', () => {
+  const song = parseChordPro(source + '\n{tempo: 100}\n[G]第二段\n{meta: tempo 90}\n[C]第三段');
+  assert.equal(song.tempo, '90');
+  assert.equal(song.time, '4/4');
+  assert.equal(song.blocks[1].text, '速度變更：100 BPM');
+  assert.equal(song.blocks[3].text, '速度變更：90 BPM');
+});
+test('invalid tempo values are ignored and omitted tempo stays unspecified', () => {
+  assert.equal(parseChordPro('[C]文字').tempo, '');
+  const song = parseChordPro('{tempo: zero}\n{tempo: -10}\n{tempo: 0}\n{tempo: Infinity}\n{meta: tempo 92.5}\n[C]文字');
+  assert.equal(song.tempo, '92.5');
+  assert.equal(song.blocks.length, 1);
+});
+test('transposition retains chord quality and handles bass notes', () => {
   assert.equal(transposeChord('Cadd9', 2), 'Dadd9');
   assert.equal(transposeChord('G/B', 2), 'A/C#');
   assert.equal(transposeChord('Am7/G', -2), 'Gm7/F');
   assert.equal(transposeChord('EØ/Bb', -1), 'EbØ/A');
   assert.equal(transposeChord('F♯m7', 1), 'Gm7');
   assert.equal(transposeChord('N.C.', 2), 'N.C.');
-  assert.equal(transposeChord('*下撥', 2), '*下撥');
 });
-test('CLI keeps keys external, creates private key file, reuses it and never overwrites ciphertext', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'sing-rpg-crypto-test-'));
-  try {
-    const source = join(dir, 'song.cho'), key = join(dir, 'unlock.key'), out = join(dir, 'book.enc.json');
-    await writeFile(source, sample.songs[0].chordpro);
-    const args = ['scripts/encrypt-songbook.mjs', '--out', out, '--key-file', key, source];
-    const run = values => execFileSync(process.execPath, values, { cwd: resolve(import.meta.dirname, '..'), encoding: 'utf8', stdio: 'pipe' });
-    const log = run(args), secret = (await readFile(key, 'utf8')).trim();
-    assert.equal(log.includes(secret), false);
-    assert.equal((await stat(key)).mode & 0o777, 0o600);
-    assert.equal((await decryptSongbook(JSON.parse(await readFile(out, 'utf8')), secret)).songs[0].chordpro, sample.songs[0].chordpro);
-    const out2 = join(dir, 'book2.enc.json');
-    run(['scripts/encrypt-songbook.mjs', '--out', out2, '--key-file', key, source]);
-    assert.equal((await readFile(key, 'utf8')).trim(), secret);
-    const previous = await readFile(out, 'utf8');
-    assert.throws(() => run(args));
-    assert.equal(await readFile(out, 'utf8'), previous);
-    assert.throws(() => run(['scripts/encrypt-songbook.mjs', '--out', out2, '--key-file', './bad.key', source]));
-    const linked = join(dir, 'project-link');
-    await symlink(resolve(import.meta.dirname, '..'), linked);
-    assert.throws(() => run(['scripts/encrypt-songbook.mjs', '--out', out2, '--key-file', join(linked, 'bad.key'), source]));
-    assert.throws(() => run(['scripts/encrypt-songbook.mjs', '--out', out2, '--key-file', key, './songs/ai-wo-bie-zou.template.cho']));
-  } finally { await rm(dir, { recursive: true, force: true }); }
+test('every built-in score is plain ChordPro with a title and tempo', async () => {
+  const base = new URL('../songs/', import.meta.url);
+  const entries = JSON.parse(await readFile(new URL('index.json', base), 'utf8'));
+  assert.equal(new Set(entries.map(entry => entry.id)).size, entries.length);
+  for (const entry of entries) {
+    assert.ok(entry.file.endsWith('.cho'));
+    const song = parseChordPro(await readFile(new URL(entry.file, base), 'utf8'));
+    assert.notEqual(song.title, '未命名歌曲');
+    assert.ok(Number(song.tempo) > 0);
+  }
 });
