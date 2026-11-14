@@ -1,0 +1,20 @@
+# ChordPro 格式範本；不是完整可演奏譜。
+# 參考頁面：https://shushurock.com/play/18486/
+# 未轉錄該頁面的完整歌詞、和弦編排或 TAB。
+
+{title: 愛我別走（待填範本）}
+{artist: 張震嶽 / A-Yue}
+{comment: 在取得所需授權後，填入歌詞與和弦。}
+
+{comment: 前奏：待填}
+
+{start_of_verse: 主歌}
+{comment: 待填歌詞與和弦；和弦使用方括號插在對應文字前。}
+{end_of_verse}
+
+{start_of_chorus: 副歌}
+{comment: 待填歌詞與和弦。}
+{end_of_chorus}
+
+{comment: 間奏：待填}
+{comment: 尾奏：待填}

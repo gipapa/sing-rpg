@@ -976,6 +976,100 @@ body.on-quest {
 }
 #heroPhotoPreview { image-rendering: auto; }
 #heroPortraitFile { max-width: 100%; margin: 8px 0; }
+#songbookDialog {
+  width: min(1080px, calc(100% - 24px));
+  max-width: none;
+  max-height: calc(100dvh - 24px);
+  padding: 20px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--bg);
+  color: #f4eddc;
+}
+#songbookDialog[open] { display: flex; flex-direction: column; gap: 14px; }
+#songbookDialog::backdrop { background: #07100dd9; }
+.songbook-heading, .score-picker, .score-transpose {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.songbook-heading { justify-content: space-between; }
+.songbook-heading small { color: var(--gold); letter-spacing: .15em; }
+.songbook-heading h2 { font-size: 24px; }
+.songbook-heading button { flex: none; }
+.songbook-unlock { display: grid; gap: 10px; width: min(100%, 580px); margin: 12px auto 24px; }
+.songbook-unlock p { color: var(--dim); margin-bottom: 10px; }
+.songbook-unlock input, .songbook-unlock select { width: 100%; min-width: 0; }
+#songbookReader { display: flex; flex-direction: column; min-height: 0; gap: 12px; }
+.score-picker select { flex: 1; min-width: 0; }
+.score-picker button { flex: none; }
+.score-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#scoreSettings { position: relative; }
+#scoreSettings summary { cursor: pointer; padding: 10px 12px; border: 1px solid var(--edge); border-radius: 5px; }
+.score-controls {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  width: min(540px, calc(100vw - 60px));
+  max-height: 55dvh;
+  overflow: auto;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px #0008;
+}
+.score-transpose { gap: 6px; }
+.score-transpose > span { min-width: 60px; text-align: center; }
+.score-controls label { display: grid; grid-template-columns: auto auto; gap: 2px 8px; font-size: 12px; color: var(--dim); }
+.score-controls input { width: 116px; grid-column: 1 / -1; accent-color: var(--mint); }
+.score-controls button { min-height: 44px; }
+#scoreViewport {
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 100px;
+  height: min(58dvh, 720px);
+  padding: 24px clamp(14px, 4vw, 48px) 80px;
+  background: #19241d;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+#scoreTitle { font-size: clamp(24px, 3vw, 34px); }
+#scoreMeta { color: var(--dim); margin-block: 6px 12px; font-size: 14px; }
+#scoreContent { line-height: 1.65; }
+.score-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-block: 8px; }
+.score-token { display: inline-flex; flex-direction: column; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+.score-token b { color: var(--gold); font: 700 .8em/1.5 ui-monospace, SFMono-Regular, monospace; min-height: 1.5em; padding-right: .45em; }
+.score-token > span { min-height: 1.65em; }
+.score-section { margin: 14px 0 6px; font-size: .8em; color: var(--mint); letter-spacing: .08em; }
+#scoreContent > .score-section:first-child { margin-top: 0; }
+.score-comment { color: var(--dim); font-size: .75em; margin-block: 8px; }
+.score-space { height: .65em; }
+.score-tab { font: .7em/1.5 ui-monospace, SFMono-Regular, monospace; white-space: pre; }
+#songbookStatus { color: var(--dim); font-size: 13px; }
+@media (max-width: 600px) {
+  #songbookDialog { padding: 14px; width: calc(100% - 12px); max-height: calc(100dvh - 12px); }
+  .songbook-heading h2 { font-size: 20px; }
+  .score-controls { gap: 8px 12px; }
+  .score-controls input { width: 100px; }
+  #scoreViewport { height: 51dvh; padding-inline: 14px; }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  #songbookDialog[open] { gap: 6px; padding: 10px 16px; }
+  .songbook-heading small { display: none; }
+  .songbook-heading h2 { font-size: 20px; }
+  #songbookReader { gap: 6px; }
+  #scoreViewport { height: 48dvh; padding-top: 12px; }
+  #scoreTitle { display: none; }
+  #scoreMeta { margin: 0 0 6px; font-size: 12px; }
+}
 #spellCutIn {
   position: absolute;
   top: 30%;

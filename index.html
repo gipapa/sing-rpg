@@ -29,7 +29,7 @@
       </section>
       <nav aria-label="營地選單">
         <button data-tab="map">世界地圖</button><button data-tab="crew">夥伴整備</button
-        ><button data-tab="books">遠征圖鑑</button><button data-tab="settings">設定</button>
+        ><button data-tab="books">遠征圖鑑</button><button type="button" id="openSongbook" aria-haspopup="dialog" aria-controls="songbookDialog">加密歌本</button><button data-tab="settings">設定</button>
       </nav>
     </header>
     <main>
@@ -177,6 +177,7 @@
             <span id="teamNames"></span>
           </div>
           <div class="battle-only battle-tools">
+            <button type="button" id="scoreToggle" aria-haspopup="dialog" aria-controls="songbookDialog">♬ 歌本</button>
             <span id="screenStatus"></span
             ><button type="button" id="musicToggle" aria-controls="musicPanel" aria-expanded="false">
               ♫ 音樂
@@ -228,6 +229,47 @@
         <p>點播放器內的播放鍵。完整歌曲需有效訂閱與 Apple Music 登入狀態。</p>
       </section>
     </main>
+    <dialog id="songbookDialog" aria-labelledby="songbookTitle">
+      <div class="songbook-heading">
+        <div><small>SONGBOOK</small><h2 id="songbookTitle">吟遊詩人的歌本</h2></div>
+        <button type="button" id="closeSongbook">關閉歌本</button>
+      </div>
+      <form id="songbookUnlock" class="songbook-unlock">
+        <p>自行播放音樂，再解鎖歌本。金鑰只用於裝置內解密，不會上傳或保存。</p>
+        <label for="songbookSource">選擇加密歌本</label>
+        <select id="songbookSource" disabled></select>
+        <label for="songbookKey">解密金鑰</label>
+        <input id="songbookKey" type="password" required autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="貼上 sing-rpg-key-v1.…" />
+        <button id="unlockSongbook" class="primary" disabled>解鎖歌本</button>
+      </form>
+      <div id="songbookReader" hidden>
+        <div class="score-picker">
+          <label for="scoreSong">歌曲</label><select id="scoreSong"></select>
+          <button type="button" id="lockSongbook">鎖定歌本</button>
+        </div>
+        <div class="score-toolbar">
+          <details id="scoreSettings">
+            <summary>閱讀設定</summary>
+            <div class="score-controls">
+          <div class="score-transpose" aria-label="移調">
+            <button type="button" id="scoreLower" aria-label="降低半音">−</button>
+            <span>移調 <b id="scoreTransposeValue">0</b></span>
+            <button type="button" id="scoreHigher" aria-label="升高半音">＋</button>
+            <button type="button" id="scoreReset">原調</button>
+          </div>
+          <label for="scoreFont">字體 <output id="scoreFontValue" for="scoreFont"></output><input id="scoreFont" type="range" min="16" max="36" step="1" /></label>
+          <label for="scoreSpeed">捲動 <output id="scoreSpeedValue" for="scoreSpeed"></output><input id="scoreSpeed" type="range" min="5" max="70" step="1" /></label>
+            </div>
+          </details>
+          <button type="button" id="scoreScroll" aria-pressed="false">開始捲動</button>
+        </div>
+        <div id="scoreViewport" tabindex="0" aria-label="歌詞與和弦譜">
+          <h2 id="scoreTitle"></h2><p id="scoreMeta"></p>
+          <div id="scoreContent"></div>
+        </div>
+      </div>
+      <p id="songbookStatus" role="status"></p>
+    </dialog>
     <dialog id="story" aria-labelledby="storyTitle">
       <div id="storyArt">
         <canvas id="storyCanvas" width="480" height="208" aria-label="王庭故事場景"></canvas>

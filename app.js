@@ -6,6 +6,7 @@ import {realms,monsters,equipment,companions,newGame,available,travelingParty} f
 import {camp} from './camp.js';
 import {countdown} from './countdown.js';
 import {battleDrums} from './drums.js';
+import {songbook} from './songbook.js';
 const $=id=>document.getElementById(id);
 const defaultList='https://music.apple.com/tw/playlist/華語流行樂-重溫熱播/pl.6d8228f57b864a4296dc02d9761a0d9b';
 function playlistURL(input){
@@ -60,6 +61,7 @@ function persist() {
   save(saveKey, data);
 }
 const lobby = camp(data, persist);
+songbook();
 let mic = null,
   running = false,
   pending = false,

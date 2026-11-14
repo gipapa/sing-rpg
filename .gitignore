@@ -1,0 +1,11 @@
+# Private score sources and unlock keys are never published.
+*.key
+*.pem
+.private-scores/
+songs/**/*.cho
+songs/**/*.chordpro
+songs/**/*.chopro
+songs/**/*.crd
+songs/**/*.chord
+songs/**/*.pro
+!songs/*.template.cho
