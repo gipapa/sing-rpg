@@ -417,7 +417,9 @@ export function portrait(canvas, gear, person, closeUp = false) {
   c.restore();
 }
 // Camera coordinates share the world's pixel grid, so equipment and foes stay accurate.
-export function spellScene(canvas, { country, area, gear, foe, time, camera, attack, hit }) {
+// Cinematic renderer: `back` paints world-space effects behind the actors and
+// `front` paints them over the actors, so spell effects follow every camera move.
+export function spellScene(canvas, { country, area, gear, foe, time, camera, attack, hit, back, front }) {
   const c = canvas.getContext('2d');
   c.save();
   c.setTransform(canvas.width / W, 0, 0, canvas.height / 240, 0, 0);
@@ -425,10 +427,18 @@ export function spellScene(canvas, { country, area, gear, foe, time, camera, att
   c.fillStyle = '#080e20';
   c.fillRect(0, 0, W, 240);
   c.translate(W / 2, 126);
+  c.rotate(camera.roll || 0);
   c.scale(camera.zoom, camera.zoom);
   c.translate(-camera.x, -camera.y);
-  c.drawImage(landscape(country, area.land), 0, 0);
+  const land = landscape(country, area.land);
+  // Stretch the edge pixels outward so cranes and rolls never reveal the canvas border.
+  c.drawImage(land, 0, 0, W, 1, 0, -700, W, 700);
+  c.drawImage(land, 0, H - 1, W, 1, 0, H, W, 300);
+  c.drawImage(land, 0, 0, 1, H, -400, 0, 400, H);
+  c.drawImage(land, W - 1, 0, 1, H, W, 0, 400, H);
+  c.drawImage(land, 0, 0);
   weather(c, area.element, time);
+  back?.(c);
   hero(c, 150, 178, gear, 0, attack, 0);
   if (foe) {
     c.save();
@@ -437,6 +447,7 @@ export function spellScene(canvas, { country, area, gear, foe, time, camera, att
     monster(c, 330, 178, foe, foe.base === 5 ? 5 : 3, time, hit);
     c.restore();
   }
+  front?.(c);
   c.restore();
 }
 export function journalIcon(canvas, entry, isMonster) {
