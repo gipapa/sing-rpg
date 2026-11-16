@@ -195,7 +195,8 @@ export function newGame() {
     loadouts: Array.from({ length: 10 }, () => [-1, -1, -1]),
     total: 0,
     story: -1,
-    lastDrop: null
+    lastDrop: null,
+    simpleAnimations: false
   };
 }
 export function available(game, country) {

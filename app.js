@@ -48,7 +48,7 @@ async function showSpell(style) {
     completed = await cinematic.play(style, {
       country: data.country, area: currentArea(trip), gear: [...data.loadouts[0]],
       foe: trip.stage === 'battle' ? monsters[trip.foe] : null
-    }, data.name);
+    }, data.name, { simple: !!data.simpleAnimations });
   } finally {
     spellPlaying = false;
     drums.setPaused(false);

@@ -100,6 +100,12 @@ export function camp(game, persist) {
     showVolume();
     persist();
   };
+  const simpleAnimations = $('simpleAnimations');
+  simpleAnimations.checked = !!game.simpleAnimations;
+  simpleAnimations.onchange = () => {
+    game.simpleAnimations = simpleAnimations.checked;
+    persist();
+  };
   for (const [id, options, selected] of [
     ['drumSpell', drumSpells, drumStyle(game).spell],
     ['drumColor', drumColors, drumStyle(game).tint]
@@ -387,6 +393,7 @@ export function camp(game, persist) {
     if (tab === 'settings') {
       renderHeroPortrait();
       $('heroName').value = game.name;
+      simpleAnimations.checked = !!game.simpleAnimations;
       $('nameStatus').textContent = '';
     }
   }
