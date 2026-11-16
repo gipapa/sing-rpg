@@ -37,12 +37,18 @@ const drums = battleDrums($('field'), data, showSpell);
 const cinematic = spellCinematic($('spellDialog'));
 let spellPlaying = false;
 let cutInAnimation;
+let cutInTimer;
+function hideCutIn() {
+  cutInAnimation?.cancel();
+  clearTimeout(cutInTimer);
+  $('spellCutIn').style.opacity = '';
+}
 async function showSpell(style) {
   if (!running || spellPlaying) return;
   const trip = data.runs[data.country];
   spellPlaying = true;
   drums.setPaused(true);
-  cutInAnimation?.cancel();
+  hideCutIn();
   let completed;
   try {
     completed = data.simpleAnimations
@@ -69,14 +75,17 @@ async function showSpell(style) {
   else portrait($('cutInPortrait'), data.loadouts[0], 0, true);
   const panel = $('spellCutIn');
   panel.style.setProperty('--spell-color', style.color);
-  cutInAnimation?.cancel();
-  const compactCutIn = lessMotion.matches || !!data.simpleAnimations;
-  cutInAnimation = panel.animate([
-    { opacity: 0, transform: compactCutIn ? 'none' : 'translateX(-20px)' },
-    { opacity: 1, transform: 'none', offset: .12 },
-    { opacity: 1, transform: 'none', offset: .78 },
-    { opacity: 0, transform: compactCutIn ? 'none' : 'translateX(20px)' }
-  ], { duration: data.simpleAnimations ? 800 : 1200 });
+  if (data.simpleAnimations) {
+    panel.style.opacity = '1';
+    cutInTimer = setTimeout(hideCutIn, 800);
+  } else {
+    cutInAnimation = panel.animate([
+      { opacity: 0, transform: lessMotion.matches ? 'none' : 'translateX(-20px)' },
+      { opacity: 1, transform: 'none', offset: .12 },
+      { opacity: 1, transform: 'none', offset: .78 },
+      { opacity: 0, transform: lessMotion.matches ? 'none' : 'translateX(20px)' }
+    ], { duration: 1200 });
+  }
   handleBattleEvent(event, performance.now());
 }
 function persist() {
@@ -208,7 +217,7 @@ function handleBattleEvent(event, now) {
 }
 function returnToCamp() {
   cinematic.cancel();
-  cutInAnimation?.cancel();
+  hideCutIn();
   drums.stop();
   running = false;
   lobby.stopStory();

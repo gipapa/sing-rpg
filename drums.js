@@ -97,13 +97,15 @@ export function battleDrums(field, game, onCast = () => {}) {
     const now = performance.now();
     if (rhythm.charge === 100) rhythm.reset();
     feedback(rhythm.tap(), now);
-    ripple.style.left = event.clientX + 'px';
-    ripple.style.top = event.clientY + 'px';
     rippleAnimation?.cancel();
-    rippleAnimation = ripple.animate([
-      { opacity: .85, scale: motion.matches ? 1 : .55 },
-      { opacity: 0, scale: motion.matches ? 1 : 1.6 }
-    ], { duration: 230 });
+    if (!game.simpleAnimations) {
+      ripple.style.left = event.clientX + 'px';
+      ripple.style.top = event.clientY + 'px';
+      rippleAnimation = ripple.animate([
+        { opacity: .85, scale: motion.matches ? 1 : .55 },
+        { opacity: 0, scale: motion.matches ? 1 : 1.6 }
+      ], { duration: 230 });
+    }
     const Audio = window.AudioContext || window.webkitAudioContext;
     if (!Audio) return;
     const context = mic?.context ?? (speaker ??= new Audio());
@@ -130,6 +132,7 @@ export function battleDrums(field, game, onCast = () => {}) {
     if (result) feedback(result, performance.now());
   }
   function effect(now) {
+    if (game.simpleAnimations) return null;
     const progress = (now - castAt) / style.spell.duration;
     if (progress < 0 || progress >= 1) return null;
     return { style, progress: motion.matches ? .56 : progress };
