@@ -178,8 +178,12 @@
           </div>
           <div class="battle-only battle-tools">
             <button type="button" id="scoreToggle" aria-haspopup="dialog" aria-controls="songbookDialog">♬ 歌本</button>
-            <span id="screenStatus"></span
-            ><button type="button" id="musicToggle" aria-controls="musicPanel" aria-expanded="false">
+            <label class="screen-toggle">
+              <input id="screenToggle" type="checkbox" role="switch" checked aria-label="螢幕常亮" aria-describedby="screenStatus" />
+              <span class="screen-toggle-track" aria-hidden="true"><span></span></span>
+              <span id="screenStatus" aria-live="polite">螢幕常亮</span>
+            </label>
+            <button type="button" id="musicToggle" aria-controls="musicPanel" aria-expanded="false">
               ♫ 音樂
             </button>
           </div>

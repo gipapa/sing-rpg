@@ -74,7 +74,7 @@ let mic = null,
   modeNotice = '',
   startAttempt = 0;
 let party = travelingParty(data);
-const keepScreenOn = battleScreenLock($('screenStatus'));
+const keepScreenOn = battleScreenLock($('screenToggle'), $('screenStatus'));
 const modeDialog = $('modeDialog');
 const modeCountdown = countdown($('modeCountdown'));
 

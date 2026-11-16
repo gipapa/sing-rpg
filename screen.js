@@ -1,15 +1,17 @@
 // A request may finish after the user has returned to camp or hidden the page.
-export function battleScreenLock(status) {
-  let wanted = false;
+export function battleScreenLock(toggle, status) {
+  let battleActive = false;
+  let wanted = toggle.checked;
   let generation = 0;
   let sentinel = null;
 
   async function update() {
     const request = ++generation;
-    if (!wanted || document.hidden) {
+    if (!battleActive || !wanted || document.hidden) {
       const previous = sentinel;
       sentinel = null;
       if (previous) await previous.release().catch(() => {});
+      if (request === generation && !wanted) status.textContent = '螢幕常亮已關閉';
       return;
     }
     if (sentinel && !sentinel.released) return;
@@ -29,15 +31,19 @@ export function battleScreenLock(status) {
       lock.addEventListener('release', () => {
         if (sentinel !== lock) return;
         sentinel = null;
-        status.textContent = '系統已解除螢幕常亮';
+        if (battleActive && wanted) status.textContent = '系統已解除螢幕常亮';
       });
     } catch {
       if (request === generation) status.textContent = '系統未允許螢幕常亮';
     }
   }
+  toggle.addEventListener('change', () => {
+    wanted = toggle.checked;
+    void update();
+  });
   document.addEventListener('visibilitychange', update);
   return active => {
-    wanted = active;
+    battleActive = active;
     void update();
   };
 }
