@@ -45,10 +45,12 @@ async function showSpell(style) {
   cutInAnimation?.cancel();
   let completed;
   try {
-    completed = await cinematic.play(style, {
-      country: data.country, area: currentArea(trip), gear: [...data.loadouts[0]],
-      foe: trip.stage === 'battle' ? monsters[trip.foe] : null
-    }, data.name);
+    completed = data.simpleAnimations
+      ? true
+      : await cinematic.play(style, {
+        country: data.country, area: currentArea(trip), gear: [...data.loadouts[0]],
+        foe: trip.stage === 'battle' ? monsters[trip.foe] : null
+      }, data.name);
   } finally {
     spellPlaying = false;
     drums.setPaused(false);
