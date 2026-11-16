@@ -176,7 +176,11 @@
             <h1 id="location">鹿角林道</h1>
             <span id="teamNames"></span>
           </div>
-          <div class="battle-only battle-tools">
+          <div class="battle-only battle-actions">
+            <button type="button" id="battleMenuToggle" aria-label="戰鬥工具" aria-controls="battleTools" aria-expanded="false">☰</button>
+            <button type="button" id="returnCamp">回營結算</button>
+          </div>
+          <div class="battle-only battle-tools" id="battleTools" hidden>
             <button type="button" id="scoreToggle" aria-haspopup="dialog" aria-controls="songbookDialog">♬ 歌本</button>
             <label class="screen-toggle">
               <input id="screenToggle" type="checkbox" role="switch" checked aria-label="螢幕常亮" aria-describedby="screenStatus" />
@@ -187,8 +191,7 @@
               ♫ 音樂
             </button>
           </div>
-          <button type="button" id="returnCamp" class="battle-only">回營結算</button
-          ><span id="phase">營地待命</span>
+          <span id="phase">營地待命</span>
           <div class="hp">
             <div class="hp-label"><small>生命</small><span id="hpText">—</span></div>
             <progress id="hp" max="100" value="0" aria-label="敵方生命"></progress>
@@ -329,6 +332,12 @@
         <span>角色自動戰鬥，可輕點戰場打鼓集氣放招。</span>
       </button>
       <button type="button" id="cancelMode">取消</button>
+    </dialog>
+    <dialog id="spellDialog" aria-labelledby="spellTitle" aria-describedby="spellShot">
+      <div class="spell-heading"><div><small id="spellCaster"></small><h2 id="spellTitle"></h2></div><span>招式演出</span></div>
+      <canvas id="spellCanvas" width="960" height="480" aria-label="主角與敵人的招式戰鬥演出"></canvas>
+      <div class="spell-footer"><span id="spellShot" role="status"></span><button type="button" id="skipSpell">略過演出</button></div>
+      <div class="spell-progress" aria-hidden="true"><i id="spellProgress"></i></div>
     </dialog>
     <script type="module" src="./app.js"></script>
   </body>

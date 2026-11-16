@@ -7,6 +7,7 @@ import {camp} from './camp.js';
 import {countdown} from './countdown.js';
 import {battleDrums} from './drums.js';
 import {songbook} from './songbook.js';
+import {spellCinematic} from './spell-cinematic.js';
 const $=id=>document.getElementById(id);
 const defaultList='https://music.apple.com/tw/playlist/華語流行樂-重溫熱播/pl.6d8228f57b864a4296dc02d9761a0d9b';
 function playlistURL(input){
@@ -33,9 +34,27 @@ $('playlistForm').onsubmit=event=>{
 const saveKey = 'eight-realms-v1';
 const data = read(saveKey) || newGame();
 const drums = battleDrums($('field'), data, showSpell);
+const cinematic = spellCinematic($('spellDialog'));
+let spellPlaying = false;
 let cutInAnimation;
-function showSpell(style) {
+async function showSpell(style) {
+  if (!running || spellPlaying) return;
   const trip = data.runs[data.country];
+  spellPlaying = true;
+  drums.setPaused(true);
+  cutInAnimation?.cancel();
+  let completed;
+  try {
+    completed = await cinematic.play(style, {
+      country: data.country, area: currentArea(trip), gear: [...data.loadouts[0]],
+      foe: trip.stage === 'battle' ? monsters[trip.foe] : null
+    }, data.name);
+  } finally {
+    spellPlaying = false;
+    drums.setPaused(false);
+    lastTick = performance.now();
+  }
+  if (!completed || !running || data.runs[data.country] !== trip) return;
   const previousHp = trip.hp;
   const event = castSpell(data, style.spell);
   const damage = event ? previousHp - trip.hp : 0;
@@ -78,25 +97,38 @@ const keepScreenOn = battleScreenLock($('screenToggle'), $('screenStatus'));
 const modeDialog = $('modeDialog');
 const modeCountdown = countdown($('modeCountdown'));
 
+function battleMenu(open) {
+  $('battleTools').hidden = !open;
+  $('battleMenuToggle').setAttribute('aria-expanded', String(open));
+}
+$('battleMenuToggle').onclick = () => battleMenu($('battleTools').hidden);
+document.addEventListener('pointerdown', event => {
+  if (!event.target.closest('.battle-tools, .battle-actions') && !$('battleTools').hidden) battleMenu(false);
+});
 function musicDrawer(open) {
   document.body.classList.toggle('music-open', open);
   $('musicPanel').inert = !open;
   $('musicToggle').setAttribute('aria-expanded', String(open));
-  (open ? $('closeMusic') : $('musicToggle')).focus({ preventScroll: true });
+  (open ? $('closeMusic') : $('battleTools').hidden ? $('battleMenuToggle') : $('musicToggle')).focus({ preventScroll: true });
 }
 $('musicToggle').onclick = () => musicDrawer(!document.body.classList.contains('music-open'));
 $('closeMusic').onclick = () => musicDrawer(false);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && document.body.classList.contains('music-open')) musicDrawer(false);
+  else if (event.key === 'Escape' && !$('battleTools').hidden) {
+    battleMenu(false);
+    $('battleMenuToggle').focus({ preventScroll: true });
+  }
 });
 function focusBattle(on) {
   songbookUI.setBattle(on);
   document.body.classList.toggle('on-quest', on);
   document.body.classList.remove('music-open');
+  battleMenu(false);
   $('musicToggle').setAttribute('aria-expanded', 'false');
   for (const el of document.querySelectorAll('body > header, main > :not(.field)')) el.inert = on;
   keepScreenOn(on);
-  if (on) $('musicToggle').focus({ preventScroll: true });
+  if (on) $('battleMenuToggle').focus({ preventScroll: true });
   else $('action').focus({ preventScroll: true });
 }
 function renderBattle() {
@@ -148,7 +180,9 @@ function tick() {
   micPaused = mic && (mic.context.state !== 'running' || mic.track.muted) ? micPaused + dt : 0;
   if (micPaused >= 10) automaticAttack('收音暫停，已切換自動攻擊');
   voice = mic?.sample(dt) ?? false;
+  if (spellPlaying) return;
   drums.sing(dt, voice);
+  if (spellPlaying) return;
   const event = advance(data, dt, !mic || voice);
   handleBattleEvent(event, now);
 }
@@ -170,6 +204,7 @@ function handleBattleEvent(event, now) {
   renderBattle();
 }
 function returnToCamp() {
+  cinematic.cancel();
   cutInAnimation?.cancel();
   drums.stop();
   running = false;
@@ -268,7 +303,7 @@ let lastPaint = -100;
 function animate(ms) {
   if (!running) return;
   drums.sample(ms);
-  if (ms - lastPaint > (lessMotion.matches ? 200 : 45)) {
+  if (!spellPlaying && ms - lastPaint > (lessMotion.matches ? 200 : 45)) {
     const trip = data.runs[data.country];
     draw({
       time: lessMotion.matches ? 0 : ms / 1000,

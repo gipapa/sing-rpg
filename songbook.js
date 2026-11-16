@@ -64,7 +64,7 @@ export function songbook() {
   }
   function close() {
     dialog.close(); syncBattleLayout();
-    if (battle) $('scoreToggle').focus({ preventScroll: true });
+    if (battle) ($('battleTools').hidden ? $('battleMenuToggle') : $('scoreToggle')).focus({ preventScroll: true });
   }
   function setBusy(value) { busy = value; controls(); }
   function rememberSelected() {

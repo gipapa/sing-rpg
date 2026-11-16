@@ -130,13 +130,20 @@ export function camp(game, persist) {
     $('bookCountry').add(new Option(realm.name, id));
     return pin;
   });
+  function collectionProgress(country) {
+    const rates = [[monsters, game.seen], [equipment, game.owned]].map(([entries, known]) => {
+      const local = entries.filter(entry => entry.country === country);
+      return local.filter(entry => !!known[entry.id]).length / local.length;
+    });
+    return Math.floor((rates[0] + rates[1]) * 5000) / 100 + '%';
+  }
   function renderMap() {
     const realm = realms[preview],
       run = game.runs[preview],
       open = available(game, preview);
     $('worldProgress').textContent = '已通關 ' + game.cleared.length + ' / 8 國';
     $('realmNumber').textContent = 'REALM ' + String(preview + 1).padStart(2, '0') + ' / 08';
-    $('realmName').textContent = realm.name;
+    $('realmName').textContent = realm.name + ' · ' + collectionProgress(preview);
     $('affinities').replaceChildren(
       ...[realm.el + '主屬', ...[...realm.sub].map((e) => e + '相')].map((value) => {
         const tag = document.createElement('span');
@@ -173,12 +180,13 @@ export function camp(game, persist) {
       })
     );
     pins.forEach((pin, id) => {
+      pin.textContent = realms[id].name + ' ' + collectionProgress(id);
       selected(pin, id === preview);
       pin.classList.toggle('locked', !available(game, id));
       pin.classList.toggle('cleared', game.cleared.includes(id));
       pin.title =
         realms[id].name +
-        ' · ' +
+        ' · 圖鑑收集 ' + collectionProgress(id) + '（裝備與敵人平均） · ' +
         (game.cleared.includes(id) ? '已通關' : available(game, id) ? '可遠征' : '尚未開放');
     });
   }

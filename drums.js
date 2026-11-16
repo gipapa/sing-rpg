@@ -49,7 +49,7 @@ export function battleDrums(field, game, onCast = () => {}) {
   const ripple = field.querySelector('#drumRipple');
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   meter.setAttribute('aria-valuemax', '100');
-  let active = false, mic = null, speaker = null, style, rhythm;
+  let active = false, paused = false, mic = null, speaker = null, style, rhythm;
   let castAt = -Infinity, feedbackUntil = 0;
   let rippleAnimation;
   function renderMeter() {
@@ -81,6 +81,7 @@ export function battleDrums(field, game, onCast = () => {}) {
     rhythm = drumCharge();
     hud.hidden = false;
     active = true;
+    paused = false;
     castAt = -Infinity;
     feedbackUntil = 0;
     setMic(input);
@@ -88,7 +89,7 @@ export function battleDrums(field, game, onCast = () => {}) {
     renderMeter();
   }
   function drumSurface(event) {
-    return active && !document.hidden && game.story === null && event.button === 0 &&
+    return active && !paused && !document.hidden && game.story === null && event.button === 0 &&
       !event.target.closest('button, a, input, select, textarea, label, summary, [role="button"], [contenteditable]');
   }
   field.addEventListener('pointerdown', (event) => {
@@ -123,7 +124,7 @@ export function battleDrums(field, game, onCast = () => {}) {
     }
   }
   function sing(dt, voiced) {
-    if (!active || game.story !== null || document.hidden) return;
+    if (!active || paused || game.story !== null || document.hidden) return;
     if (rhythm.charge === 100) return;
     const result = rhythm.sing(dt, voiced);
     if (result) feedback(result, performance.now());
@@ -133,5 +134,5 @@ export function battleDrums(field, game, onCast = () => {}) {
     if (progress < 0 || progress >= 1) return null;
     return { style, progress: motion.matches ? .56 : progress };
   }
-  return { start, stop, setMic, sample, sing, effect };
+  return { start, stop, setMic, sample, sing, effect, setPaused(value) { paused = value; } };
 }

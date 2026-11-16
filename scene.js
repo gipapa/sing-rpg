@@ -416,6 +416,29 @@ export function portrait(canvas, gear, person, closeUp = false) {
   } else hero(c, 17, 43, gear, person, false, 0);
   c.restore();
 }
+// Camera coordinates share the world's pixel grid, so equipment and foes stay accurate.
+export function spellScene(canvas, { country, area, gear, foe, time, camera, attack, hit }) {
+  const c = canvas.getContext('2d');
+  c.save();
+  c.setTransform(canvas.width / W, 0, 0, canvas.height / 240, 0, 0);
+  c.imageSmoothingEnabled = false;
+  c.fillStyle = '#080e20';
+  c.fillRect(0, 0, W, 240);
+  c.translate(W / 2, 126);
+  c.scale(camera.zoom, camera.zoom);
+  c.translate(-camera.x, -camera.y);
+  c.drawImage(landscape(country, area.land), 0, 0);
+  weather(c, area.element, time);
+  hero(c, 150, 178, gear, 0, attack, 0);
+  if (foe) {
+    c.save();
+    c.translate(660, 0);
+    c.scale(-1, 1);
+    monster(c, 330, 178, foe, foe.base === 5 ? 5 : 3, time, hit);
+    c.restore();
+  }
+  c.restore();
+}
 export function journalIcon(canvas, entry, isMonster) {
   const c = canvas.getContext('2d');
   if (isMonster) {

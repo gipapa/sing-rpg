@@ -867,15 +867,6 @@ body.on-quest {
 .on-quest.music-open #player {
   height: min(300px, calc(100dvh - 96px));
 }
-@media (orientation: portrait) {
-  .on-quest .battle-tools {
-    top: max(12px, env(safe-area-inset-top));
-    left: max(14px, env(safe-area-inset-left));
-    right: auto;
-    flex-direction: row-reverse;
-  }
-}
-
 #modeDialog {
   width: min(400px, calc(100% - 32px));
   max-height: 90dvh;
@@ -1210,15 +1201,7 @@ body.songbook-battle { --score-panel-width: min(680px, 54vw); }
 .songbook-battle #scoreContent { text-shadow: 0 1px 3px #07100b99; }
 .songbook-battle .score-picker select { min-height: 40px; font-size: 14px; }
 .songbook-battle .songbook-footer { padding-top: 2px; }
-.on-quest.songbook-battle .battle-tools {
-  top: max(12px, env(safe-area-inset-top));
-  left: max(12px, env(safe-area-inset-left));
-  right: auto;
-  gap: 6px;
-  flex-direction: row;
-}
-.songbook-battle #scoreToggle { display: none; }
-.songbook-battle #screenStatus { max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.songbook-battle #scoreToggle { display: block; }
 .on-quest.songbook-battle #returnCamp { right: 12px; font-size: 13px; }
 .on-quest.songbook-battle .caption { top: 66px; left: 12px; max-width: calc(75% - 24px); }
 .on-quest.songbook-battle .caption h1 { font-size: 24px; line-height: 1.2; }
@@ -1234,7 +1217,6 @@ body.songbook-battle { --score-panel-width: min(680px, 54vw); }
   .on-quest.songbook-battle #songbookDialog { inset: calc(40dvh + 6px) 8px 8px; width: auto; padding: 12px; gap: 8px; }
 }
 @media (orientation: landscape) and (max-width: 760px) {
-  .songbook-battle #screenStatus { display: none; }
   .on-quest.songbook-battle .caption h1 { font-size: 21px; }
 }
 @media (max-height: 700px) {
@@ -1268,4 +1250,89 @@ body.songbook-battle { --score-panel-width: min(680px, 54vw); }
   min-width: 4ch;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* One anchored control group in every battle and score layout. */
+.on-quest .battle-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 5;
+}
+.on-quest .battle-actions #returnCamp {
+  position: static;
+  white-space: nowrap;
+}
+#battleMenuToggle {
+  width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  font-size: 24px;
+  line-height: 1;
+  color: #f6f1e4;
+  background: #172331ed;
+  border-color: #728185;
+}
+.on-quest .battle-tools,
+.on-quest.songbook-battle .battle-tools {
+  top: max(64px, calc(env(safe-area-inset-top) + 52px));
+  left: auto;
+  right: max(12px, env(safe-area-inset-right));
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  z-index: 6;
+  padding: 8px;
+  border: 1px solid #728185;
+  border-radius: 8px;
+  background: #111c29f5;
+  box-shadow: 0 8px 24px #0006;
+  min-width: 170px;
+}
+.songbook-battle #screenStatus { display: inline; max-width: none; }
+.screen-toggle { white-space: nowrap; }
+#spellDialog {
+  width: min(1000px, calc(100vw - 24px));
+  max-width: none;
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  padding: 0;
+  border: 1px solid var(--spell-color, var(--gold));
+  border-radius: 12px;
+  color: #f6f1e4;
+  background: #090f1b;
+  box-shadow: 0 0 70px #000a;
+}
+#spellDialog::backdrop { background: #030712d9; }
+.spell-heading, .spell-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+}
+.spell-heading small { color: #c1c9d9; }
+.spell-heading h2 { margin: 2px 0 0; color: var(--spell-color); font: 26px var(--serif); }
+.spell-heading > span { flex: none; color: #d8c9a6; font-size: 12px; }
+#spellCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(100dvh - 174px);
+  object-fit: contain;
+  background: #050a12;
+  image-rendering: pixelated;
+}
+.spell-footer { font-size: 13px; color: #d6d9e5; }
+.spell-footer button { flex: none; min-height: 44px; font-size: 13px; }
+.spell-progress { height: 3px; background: #283044; }
+.spell-progress i { display: block; height: 100%; background: var(--spell-color); }
+@media (max-width: 480px) {
+  .spell-heading, .spell-footer { padding: 10px 12px; gap: 8px; }
+  .spell-heading small { font-size: 10px; }
+  .spell-heading h2 { font-size: 23px; }
+  .spell-footer { font-size: 11px; }
 }
