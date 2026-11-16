@@ -48,7 +48,7 @@ async function showSpell(style) {
     completed = await cinematic.play(style, {
       country: data.country, area: currentArea(trip), gear: [...data.loadouts[0]],
       foe: trip.stage === 'battle' ? monsters[trip.foe] : null
-    }, data.name, { simple: !!data.simpleAnimations });
+    }, data.name);
   } finally {
     spellPlaying = false;
     drums.setPaused(false);
@@ -68,12 +68,13 @@ async function showSpell(style) {
   const panel = $('spellCutIn');
   panel.style.setProperty('--spell-color', style.color);
   cutInAnimation?.cancel();
+  const compactCutIn = lessMotion.matches || !!data.simpleAnimations;
   cutInAnimation = panel.animate([
-    { opacity: 0, transform: lessMotion.matches ? 'none' : 'translateX(-20px)' },
+    { opacity: 0, transform: compactCutIn ? 'none' : 'translateX(-20px)' },
     { opacity: 1, transform: 'none', offset: .12 },
     { opacity: 1, transform: 'none', offset: .78 },
-    { opacity: 0, transform: lessMotion.matches ? 'none' : 'translateX(20px)' }
-  ], { duration: 1200 });
+    { opacity: 0, transform: compactCutIn ? 'none' : 'translateX(20px)' }
+  ], { duration: data.simpleAnimations ? 800 : 1200 });
   handleBattleEvent(event, performance.now());
 }
 function persist() {
