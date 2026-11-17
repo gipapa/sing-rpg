@@ -96,7 +96,7 @@ export function spellCinematic(dialog) {
     const spell = state.style.spell, foe = state.scene.foe;
     const plan = spellPlans[spell.id] ?? starsPlan;
     const end = plan.duration ?? duration;
-    const t = Math.min(state.elapsed, end), w = warp(t, plan.impact);
+    const t = Math.min(state.elapsed, end), w = plan.warp ? plan.warp(t) : warp(t, plan.impact);
     const pose = plan.pose?.(t, w, reduced.matches);
     const { shot, cam, whip } = cameraAt(plan, t, reduced.matches);
     const ctx = {

@@ -1,20 +1,44 @@
-import { FOE, span, eases, rand, spark, glow } from './spell-fx.js';
+import { FOE, span, eases, rand, spark, glow, warp } from './spell-fx.js';
 
 // 森冠裁決 (銀角王劍): the hero drives the king's blade into the earth, an ancient forest
 // erupts, a colossal silver-antlered stag steps out, its antlers become a sky-sized sword,
 // and one swing cleaves the foe and the forest behind it.
-const IMPACT = 10500;
-const DURATION = 14200;
+//
+// The finale follows the grammar of a giant-scale finishing move: the hero hoists the sky
+// sword in an extreme low angle, wind and light pour into it, the foe looks up at it, a
+// tracking swing stops dead a hair above the target, and then one enormous cut lands.
+const RAISE = 9600;    // hoist the sky sword overhead
+const CHARGE = 10400;  // wind pressure and light gather in the blade
+const DREAD = 11300;   // the foe looks up at what is coming
+const STRIKE = 11800;  // the swing
+const FREEZE = 12200;  // the frame stops with the edge just above the foe
+const IMPACT = 12550;
+const DURATION = IMPACT + 3700;
 const SWING = 1.5;
+const COCK = -.62;
 const CUT = .16;
 const PLANT = [163, 182];
 const SILVER = '#eef6ee', WHITE = '#fbfff6';
 const S = 6;
 
+// Time nearly stops during the pre-hit freeze, then the usual hit-stop follows the impact.
+const forestWarp = (t) => t < FREEZE ? t
+  : t < IMPACT ? FREEZE + (t - FREEZE) * .05
+  : warp(t, IMPACT) - (IMPACT - FREEZE) * .95;
+const W_IMPACT = forestWarp(IMPACT);
+
 const smoothOut = (k) => 1 - (1 - k) ** 3;
 const back = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2;
 
 // ---- Actor choreography ------------------------------------------------------------
+
+// Swing progress: accelerates, holds just short of contact through the freeze, then lands.
+function swingAt(t) {
+  if (t < STRIKE) return 0;
+  if (t < FREEZE) return .9 * eases.in(span(t, STRIKE, FREEZE));
+  if (t < IMPACT) return .9 + .015 * span(t, FREEZE, IMPACT);
+  return 1;
+}
 
 function heroPose(t) {
   let dx = 0, dy = 0, angle = 0;
@@ -24,22 +48,36 @@ function heroPose(t) {
   else if (t < 6500) { angle = Math.PI; dy = 3; }
   else if (t < 6900) { const k = smoothOut(span(t, 6500, 6900)); angle = Math.PI - (Math.PI - .25) * k; dy = 3 - 3 * k; }
   else if (t < 8700) angle = .25;
-  else if (t < 9900) { const k = eases.inOut(span(t, 8700, 9300)); angle = .25 - .4 * k; dy = -k; }
-  else if (t < IMPACT) { const k = eases.in(span(t, 9900, IMPACT)); angle = -.15 + (SWING + .15) * k; dx = 8 * k; dy = -1 + 3 * k; }
-  else if (t < 12600) { angle = SWING + .55 * smoothOut(span(t, IMPACT, IMPACT + 500)); dx = 8; dy = 2; }
-  else { const k = eases.inOut(span(t, 12600, 13300)); angle = SWING + .55 + (Math.PI - SWING - .55) * k; dx = 8; dy = 2 + k; }
+  else if (t < RAISE) { const k = eases.inOut(span(t, 8700, 9300)); angle = .25 - .4 * k; dy = -k; }
+  else if (t < CHARGE) {
+    // Hoisting a sky-sized blade: it overshoots back over the shoulder and wavers under its weight.
+    const k = back(span(t, RAISE, CHARGE)), strain = span(t, RAISE, CHARGE) * (1 - span(t, CHARGE - 200, CHARGE));
+    angle = -.15 + (COCK + .15) * k + Math.sin(t / 45) * .02 * strain; dx = -k; dy = -1 - 2 * k;
+  } else if (t < STRIKE) {
+    // Feet planted, blade cocked back and trembling with gathered power.
+    const crouch = smoothOut(span(t, CHARGE, CHARGE + 300));
+    angle = COCK + Math.sin(t * .09) * .025 * span(t, CHARGE, DREAD); dx = -1 - crouch; dy = -3 + 4 * crouch;
+  } else if (t < IMPACT) { const s = swingAt(t); angle = COCK + (SWING - COCK) * s; dx = -2 + 10 * s; dy = 1 + s; }
+  else if (t < IMPACT + 2100) { angle = SWING + .55 * smoothOut(span(t, IMPACT, IMPACT + 500)); dx = 8; dy = 2; }
+  else { const k = eases.inOut(span(t, IMPACT + 2100, IMPACT + 2800)); angle = SWING + .55 + (Math.PI - SWING - .55) * k; dx = 8; dy = 2 + k; }
   return { dx, dy, angle };
 }
 
 function foePose(t, w) {
   let dx = 0, dy = 0, tilt = 0;
   if (t >= 2050 && t < 4300) dx = Math.sin(w * .11) * (1.4 - span(t, 2050, 4300));
-  if (t >= 4300 && t < IMPACT) dx = Math.sin(w * .21) * (1 - span(t, 5400, 6000) * .6) + 6 * smoothOut(span(t, 4300, 5400));
+  if (t >= 4300 && t < IMPACT) {
+    // Under the raised sky sword it shakes harder, shrinks back and looks up.
+    const dread = span(t, DREAD, DREAD + 300);
+    dx = Math.sin(w * .21) * (1 - span(t, 5400, 6000) * .6 + dread * 1.2) + 6 * smoothOut(span(t, 4300, 5400)) + 3 * dread;
+    tilt = -.08 * dread; dy = dread;
+  }
   if (t >= IMPACT) {
-    const k = span(t, IMPACT, IMPACT + 700);
-    dx = 6 + 16 * smoothOut(k) - 8 * eases.inOut(span(t, IMPACT + 1200, IMPACT + 2400));
-    tilt = .24 * Math.sin(Math.min(1, k * 1.2) * Math.PI);
-    dy = -7 * Math.sin(Math.min(1, k * 1.6) * Math.PI);
+    // Knockback runs on warped time so it respects the hit-stop.
+    const k = span(w, W_IMPACT, W_IMPACT + 800);
+    dx = 9 + 28 * smoothOut(k) - 12 * eases.inOut(span(t, IMPACT + 1300, IMPACT + 2600));
+    tilt = .34 * Math.sin(Math.min(1, k * 1.2) * Math.PI);
+    dy = -12 * Math.sin(Math.min(1, k * 1.5) * Math.PI);
   }
   return { dx, dy, tilt };
 }
@@ -244,11 +282,14 @@ function giantSword(c, x, y, angle, length, alpha, color) {
   c.restore();
 }
 
+// The sword forms from the antlers, then swells further while it gathers power.
+const swordLength = (t) => 330 * smoothOut(span(t, 8900, 9500)) + 60 * smoothOut(span(t, CHARGE, DREAD));
+
 // ---- Layers -------------------------------------------------------------------------
 
 function drawBack(c, t, w, ctx) {
   const { color, reduced } = ctx;
-  const veil = .08 + .4 * span(t, 2200, 3400) - .12 * span(t, 11300, 12600);
+  const veil = .08 + .4 * span(t, 2200, 3400) - .12 * span(t, IMPACT + 800, IMPACT + 2100);
   c.globalAlpha = veil; c.fillStyle = '#03100a';
   c.fillRect(-1200, -900, 3000, 1400);
   const sky = c.createLinearGradient(0, -420, 0, 40);
@@ -256,15 +297,17 @@ function drawBack(c, t, w, ctx) {
   c.globalAlpha = 1; c.fillStyle = sky; c.fillRect(-1200, -900, 3000, 940);
   c.globalCompositeOperation = 'lighter';
   for (let i = 0; i < (reduced ? 30 : 90); i++) {
-    c.globalAlpha = (.3 + .4 * Math.sin(w / (300 + rand(i, 2) * 500) + i)) * .7;
+    c.globalAlpha = Math.max(0, .3 + .4 * Math.sin(w / (300 + rand(i, 2) * 500) + i)) * .7;
     c.fillStyle = i % 6 ? '#e6f5e8' : color;
     c.fillRect(-200 + rand(i) * 880, -420 + rand(i, 1) * 440, 1, 1);
   }
   c.globalCompositeOperation = 'source-over';
   // The stag stands behind the forest's front rank but in front of the far trees.
-  const stagAlpha = .9 * span(t, 6900, 7700) * (1 - .7 * span(t, 9000, 9700)) * (t < IMPACT + 900 ? 1 : 1 - span(t, IMPACT + 900, IMPACT + 1500))
-    + (t >= 12500 ? .35 * span(t, 12500, 13300) : 0);
-  const antler = 1 - span(t, 8800, 9400) + (t >= 12500 ? span(t, 12500, 13300) : 0);
+  // Its spirit looms larger again behind the hero while the sky sword is hoisted and charged.
+  const ghost = .9 * span(t, 6900, 7700) * (1 - .7 * span(t, 9000, 9700)) + .35 * span(t, RAISE + 100, CHARGE) * (1 - span(t, STRIKE - 100, FREEZE));
+  const stagAlpha = ghost * (t < IMPACT + 900 ? 1 : 1 - span(t, IMPACT + 900, IMPACT + 1500))
+    + (t >= IMPACT + 2000 ? .35 * span(t, IMPACT + 2000, IMPACT + 2800) : 0);
+  const antler = 1 - span(t, 8800, 9400) + (t >= IMPACT + 2000 ? span(t, IMPACT + 2000, IMPACT + 2800) : 0);
   if (t >= 2150) forest(c, t, w, color);
   stag(c, t, w, color, stagAlpha, Math.min(1, antler));
   c.globalCompositeOperation = 'lighter';
@@ -277,7 +320,7 @@ function drawBack(c, t, w, ctx) {
   }
   // Glowing root cracks spread from the blade.
   if (t >= 2050) {
-    const grow = smoothOut(span(t, 2050, 2900)), fade = 1 - .6 * span(t, 4800, 6000) + .5 * span(t, 6400, 6900) - .6 * span(t, 11000, 12000);
+    const grow = smoothOut(span(t, 2050, 2900)), fade = Math.min(1, 1 - .6 * span(t, 4800, 6000) + .5 * span(t, 6400, 6900) + .4 * span(t, CHARGE, STRIKE) - .9 * span(t, IMPACT + 500, IMPACT + 1500));
     c.lineCap = 'round';
     for (let i = 0; i < 12; i++) {
       const dir = i % 2 ? 1 : -1;
@@ -295,7 +338,7 @@ function drawBack(c, t, w, ctx) {
   }
   // Ground fissure left by the judgment.
   if (t >= IMPACT) {
-    const k = span(t, IMPACT, IMPACT + 400), fade = 1 - span(t, 12000, DURATION);
+    const k = span(t, IMPACT, IMPACT + 400), fade = 1 - span(t, IMPACT + 1500, DURATION);
     c.lineWidth = 3; c.strokeStyle = color; c.globalAlpha = .8 * fade;
     c.beginPath(); c.moveTo(170, 183); c.lineTo(170 + 320 * k, 183 + 4 * k); c.stroke();
   }
@@ -382,7 +425,6 @@ function drawFront(c, t, w, ctx) {
     if (eye > 0) spark(c, 156, 152 + pose.dy, 1.2 + 1.5 * eye, WHITE, eye);
   }
   // Antler light streams into the sky sword.
-  const formed = smoothOut(span(t, 8900, 9500));
   if (t >= 8700 && t < 9700) {
     const n = Math.round(antlerBlocks.length * dense);
     for (let i = 0; i < n; i += 2) {
@@ -395,45 +437,151 @@ function drawFront(c, t, w, ctx) {
       spark(c, sx + (ex - sx) * k, sy + (ey - sy) * k - Math.sin(k * Math.PI) * 30, 1.6, i % 3 ? SILVER : color, 1 - q * .3);
     }
   }
+  const len = swordLength(t), dirX = Math.sin(pose.angle), dirY = -Math.cos(pose.angle);
+  // Hoist and charge: wind pressure rushes into the blade, debris lifts, light climbs the sword.
+  if (t >= RAISE && t < STRIKE) {
+    const power = span(t, 10000, DREAD), fade = 1 - span(t, STRIKE - 120, STRIKE);
+    // A stomp ring when the hero plants their feet under the weight.
+    const stomp = span(t, CHARGE + 40, CHARGE + 520);
+    if (stomp > 0 && stomp < 1) {
+      c.save(); c.translate(150, 184); c.scale(1, .22);
+      c.globalAlpha = 1 - stomp; c.strokeStyle = WHITE; c.lineWidth = 2;
+      c.beginPath(); c.arc(0, 0, 10 + stomp * 120, 0, Math.PI * 2); c.stroke(); c.restore();
+    }
+    // Wind streaks converge from both sides onto points along the blade.
+    for (let i = 0; i < 70 * dense; i++) {
+      const life = ((w - RAISE) / (420 + rand(i, 90) * 380) + rand(i, 91)) % 1;
+      const side = i % 2 ? 1 : -1, f = 20 + rand(i, 92) * len * .85;
+      const d = (1 - life) ** 1.6 * (140 + rand(i, 93) * 240), streak = 10 + 40 * (1 - life);
+      const x = hx + dirX * f + side * d, y = hy + dirY * f + (rand(i, 94) - .5) * 50 * (1 - life);
+      c.globalAlpha = power * fade * .55 * Math.sin(life * Math.PI);
+      c.fillStyle = i % 3 ? SILVER : color;
+      c.fillRect(side > 0 ? x : x - streak, y, streak, 1);
+    }
+    if (t >= CHARGE) {
+      // Rings of light climb from the hilt to the tip.
+      c.save(); c.translate(hx, hy); c.rotate(pose.angle);
+      for (let n = 0; n < 6; n++) {
+        const q = ((w - CHARGE) / 650 + n / 6) % 1, f = 24 + q * (len - 40);
+        c.globalAlpha = power * fade * (1 - q) * .85; c.strokeStyle = n % 2 ? WHITE : color; c.lineWidth = 1.5;
+        c.beginPath(); c.ellipse(0, -f, 8 + 26 * (1 - q * .6), 4 + 2 * (1 - q), 0, 0, Math.PI * 2); c.stroke();
+      }
+      c.restore();
+      // Crackling arcs leap off the blade.
+      const beat = Math.floor(w / 70);
+      if (beat % 3) for (let i = 0; i < 3 * dense + 1; i++) {
+        const seed = beat * 7 + i, f = 40 + rand(seed, 99) * (len - 60);
+        let x = hx + dirX * f, y = hy + dirY * f;
+        c.globalAlpha = power * fade * .9; c.strokeStyle = i % 2 ? WHITE : color; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(x, y);
+        for (let k = 0; k < 5; k++) { x += (rand(seed, k) - .5) * 28; y += (rand(seed, k + 9) - .5) * 28; c.lineTo(x, y); }
+        c.stroke();
+      }
+      // Aura licks upward around the hero.
+      for (let i = 0; i < 44 * dense; i++) {
+        const life = ((w - CHARGE) / 620 + rand(i, 100)) % 1;
+        spark(c, 150 + (rand(i, 101) - .5) * 30 + Math.sin(life * 6 + i) * 3, 183 - life * 52, .5 + .7 * (1 - life), i % 3 ? color : WHITE, power * fade * (1 - life) * .85);
+      }
+      // Pebbles and dust lift off the ground against gravity.
+      c.globalCompositeOperation = 'source-over';
+      for (let i = 0; i < 34 * dense; i++) {
+        const life = ((w - CHARGE) / (1300 + rand(i, 95) * 900) + rand(i, 96)) % 1, size = 1 + (i % 3);
+        c.globalAlpha = power * fade * (1 - life); c.fillStyle = i % 2 ? '#5a4a36' : '#8a7a5a';
+        c.fillRect(150 + (rand(i, 97) - .5) * 140 + Math.sin(w / 300 + i) * 3, 184 - life * 100 * (.4 + rand(i, 98)), size, size);
+      }
+      c.globalCompositeOperation = 'lighter';
+    }
+    glow(c, hx, hy, 30 + 50 * power, color, .6 * power * fade);
+  }
+  // The foe looks up: the blade's light spills over it from above.
+  if (t >= DREAD && t < STRIKE) {
+    const k = span(t, DREAD, DREAD + 300) * (1 - span(t, STRIKE - 100, STRIKE));
+    glow(c, foeX - 70, foeY - 90, 150, color, .55 * k);
+    glow(c, foeX - 6, foeY - 12, 26, WHITE, .25 * k * (.7 + .3 * Math.sin(w / 60)));
+  }
+  // The pre-hit freeze: the world drops to near-black and only the blade stays lit.
+  if (t >= FREEZE && t < IMPACT) {
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = .64 * span(t, FREEZE, FREEZE + 50); c.fillStyle = '#01040a';
+    c.fillRect(-1200, -2000, 3000, 2600);
+    c.globalCompositeOperation = 'lighter';
+  }
   // The sword: forms over the raised blade, swings with it, then breaks into light.
-  if (t >= 8900 && t < 11600) {
-    const fade = 1 - span(t, 10900, 11600);
-    if (t >= 9900 && t < IMPACT + 400) {
-      const prev = Math.max(-.15, pose.angle - .9);
+  if (t >= 8900 && t < IMPACT + 1100) {
+    const fade = 1 - span(t, IMPACT + 400, IMPACT + 1100), formed = smoothOut(span(t, 8900, 9500));
+    if (t >= STRIKE && t < IMPACT + 400) {
+      const prev = Math.max(COCK, pose.angle - 1.1), trail = 1 - span(t, IMPACT, IMPACT + 400);
       for (let k = 0; k < 6; k++) {
         const a0 = prev + (pose.angle - prev) * (k / 6), a1 = prev + (pose.angle - prev) * ((k + 1) / 6);
-        c.globalAlpha = .08 + .07 * k; c.fillStyle = k > 3 ? WHITE : color;
+        c.globalAlpha = (.08 + .08 * k) * trail; c.fillStyle = k > 3 ? WHITE : color;
         c.beginPath(); c.moveTo(hx, hy);
-        c.arc(hx, hy, 340, a0 - Math.PI / 2, a1 - Math.PI / 2); c.closePath(); c.fill();
+        c.arc(hx, hy, len + 10, a0 - Math.PI / 2, a1 - Math.PI / 2); c.closePath(); c.fill();
+      }
+      // Speed arcs ride the swing.
+      c.lineWidth = 1;
+      for (let i = 0; i < 18 * dense; i++) {
+        const r = 50 + rand(i, 110) * (len - 30), a0 = Math.min(pose.angle, prev + rand(i, 111) * .4);
+        c.globalAlpha = .55 * trail; c.strokeStyle = i % 2 ? WHITE : color;
+        c.beginPath(); c.arc(hx, hy, r, a0 - Math.PI / 2, pose.angle - Math.PI / 2); c.stroke();
       }
     }
-    giantSword(c, hx, hy, pose.angle, 330 * formed, fade, color);
-    glow(c, hx, hy, 40 + 30 * formed, color, .45 * formed * fade);
+    const charged = span(t, CHARGE, STRIKE) + (t >= FREEZE && t < IMPACT ? 1 : 0);
+    giantSword(c, hx, hy, pose.angle, len, fade, color);
+    glow(c, hx, hy, 40 + 30 * formed + 40 * span(t, CHARGE, DREAD), color, Math.min(1, (.45 + .3 * charged) * formed * fade));
   }
-  // Impact: the cut line, the burst and a storm of leaves.
-  if (t >= IMPACT && t < 12800) {
-    const k = (w - IMPACT) / 1000;
-    const cx = Math.cos(CUT), cy = Math.sin(CUT);
-    const width = Math.max(0, 14 * (1 - k * 1.4)) + 1.5 * (1 - span(t, 11800, 12800));
-    for (const [pad, tint, a] of [[width * 2.4, color, .35], [width, WHITE, 1]]) {
-      c.globalAlpha = a; c.strokeStyle = tint; c.lineWidth = pad; c.lineCap = 'butt';
-      c.beginPath(); c.moveTo(FOE[0] - cx * 700, 152 - cy * 700); c.lineTo(FOE[0] + cx * 700, 152 + cy * 700); c.stroke();
+  // The freeze glint: a star on the edge a hair above the foe, and a hairline across the frame.
+  if (t >= FREEZE && t < IMPACT) {
+    const k = span(t, FREEZE, IMPACT), f = Math.max(40, (foeX - hx) / Math.max(.2, dirX));
+    const x = hx + dirX * f, y = hy + dirY * f;
+    c.globalAlpha = .7; c.fillStyle = WHITE; c.fillRect(-1200, y - .5, 3000, 1);
+    c.globalAlpha = .35; c.fillStyle = color; c.fillRect(x - .5, -2000, 1, 2600);
+    spark(c, x, y, 2.5 + 4 * eases.out(k), WHITE, 1);
+    glow(c, x, y, 20 + 30 * k, color, .8);
+  }
+  // Impact: a colossal tapered slash, afterimage lines, a radial burst and a storm of leaves.
+  if (t >= IMPACT && t < IMPACT + 2300) {
+    const k = Math.max(0, (w - W_IMPACT) / 1000);
+    const cx = Math.cos(CUT), cy = Math.sin(CUT), nx = -cy, ny = cx, [ox, oy] = [FOE[0], 152];
+    const reach = smoothOut(span(t, IMPACT, IMPACT + 90));
+    const width = Math.max(0, 44 * (1 - k * 1.5)) + 1.5 * (1 - span(t, IMPACT + 1300, IMPACT + 2300));
+    const ax = ox - cx * 700, ay = oy - cy * 700, bx = ax + cx * 1400 * reach, by = ay + cy * 1400 * reach;
+    const mx = (ax + bx) / 2, my = (ay + by) / 2;
+    for (const [half, tint, a] of [[width * 1.3, color, .45], [width * .5, WHITE, 1]]) {
+      c.globalAlpha = a; c.fillStyle = tint;
+      c.beginPath(); c.moveTo(ax, ay); c.lineTo(mx + nx * half, my + ny * half);
+      c.lineTo(bx, by); c.lineTo(mx - nx * half, my - ny * half); c.closePath(); c.fill();
     }
-    glow(c, foeX, foeY, 40 + 170 * k, color, Math.max(0, 1 - k * .8));
+    c.lineWidth = 1;
+    for (const [off, a] of [[-16, .6], [13, .5], [28, .3]]) {
+      c.globalAlpha = a * Math.max(0, 1 - k * 1.2); c.strokeStyle = off < 0 ? WHITE : color;
+      c.beginPath(); c.moveTo(ax + nx * off, ay + ny * off); c.lineTo(bx + nx * off, by + ny * off); c.stroke();
+    }
+    glow(c, foeX, foeY, 40 + 200 * k, color, Math.max(0, 1 - k * .8));
+    for (let i = 0; i < 40 * dense; i++) {
+      const a = rand(i, 120) * Math.PI * 2, r0 = 24 + k * 420 + rand(i, 121) * 160, r1 = r0 + 30 + rand(i, 122) * 70;
+      c.globalAlpha = Math.max(0, 1 - k * 1.6) * .6; c.strokeStyle = i % 2 ? WHITE : color; c.lineWidth = 1 + (i % 2);
+      c.beginPath(); c.moveTo(foeX + Math.cos(a) * r0, foeY + Math.sin(a) * r0 * .7);
+      c.lineTo(foeX + Math.cos(a) * r1, foeY + Math.sin(a) * r1 * .7); c.stroke();
+    }
     for (let n = 0; n < 3; n++) {
-      const r = Math.min(1, k * 1.2 - n * .12) * (120 + n * 90);
-      if (r <= 0 || r >= 120 + n * 90) continue;
+      const r = Math.min(1, k * 1.2 - n * .12) * (150 + n * 110);
+      if (r <= 0 || r >= 150 + n * 110) continue;
       c.save(); c.translate(foeX, 183); c.scale(1, .26);
-      c.globalAlpha = 1 - r / (120 + n * 90); c.strokeStyle = n ? color : WHITE; c.lineWidth = 3 - n;
+      c.globalAlpha = 1 - r / (150 + n * 110); c.strokeStyle = n ? color : WHITE; c.lineWidth = 3 - n;
       c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.stroke(); c.restore();
     }
     for (let i = 0; i < 40 * dense; i++) {
       const along = (rand(i, 70) - .5) * 500;
-      spark(c, FOE[0] + cx * along, 152 + cy * along + k * 20 * rand(i, 71), 1.2, i % 2 ? WHITE : color, Math.max(0, 1 - k));
+      spark(c, ox + cx * along, oy + cy * along + k * 20 * rand(i, 71), 1.2, i % 2 ? WHITE : color, Math.max(0, 1 - k));
+    }
+    // Afterglow: silver motes rise slowly off the cut long after the blow.
+    for (let i = 0; i < 30 * dense; i++) {
+      const along = (rand(i, 123) - .5) * 600, life = (k * .6 + rand(i, 124)) % 1;
+      spark(c, ox + cx * along, oy + cy * along - life * 40, .6, i % 2 ? SILVER : color, .7 * span(k, .3, .8) * (1 - life) * (1 - span(t, IMPACT + 1800, IMPACT + 2300)));
     }
     c.globalCompositeOperation = 'source-over';
     for (let i = 0; i < 120 * dense; i++) {
-      const a = rand(i, 72) * Math.PI * 2, v = 60 + rand(i, 73) * 200;
+      const a = rand(i, 72) * Math.PI * 2, v = 60 + rand(i, 73) * 220;
       const x = foeX + Math.cos(a) * v * k + Math.sin(w / 300 + i) * 6 * k, y = foeY + Math.sin(a) * v * k * .6 + 50 * k * k;
       if (y < 184) leaf(c, x, y, 1.8, a + w / 150, i % 3 ? '#4f8a3f' : color, Math.max(0, 1 - k * .55));
     }
@@ -453,8 +601,9 @@ function drawFront(c, t, w, ctx) {
 export const forestPlan = {
   impact: IMPACT,
   duration: DURATION,
-  titleAt: 12700,
+  titleAt: IMPACT + 2200,
   attack: [1400, IMPACT + 600],
+  warp: forestWarp,
   shots: [
     [0, '王劍 · 銀角低鳴', [159, 166, 7.2, -.05], [159, 143, 6.6, .03], 'inOut'],
     [1400, '插地 · 王劍入土', [168, 172, 3.2, .08], [160, 166, 3.9, .02], 'out', 160],
@@ -463,21 +612,35 @@ export const forestPlan = {
     [5400, '蓄勢 · 鹿王之息', [154, 152, 7.5, .04], [152, 162, 3.0, -.07], 'inOut'],
     [6900, '異象 · 銀角神鹿', [150, 150, 2.4, 0], [150, -110, .95, 0], 'inOut'],
     [8700, '天劍 · 鹿角成刃', [205, 68, .78, -.05], [190, 42, .72, .02], 'out'],
-    [9900, '裁決 · 一刀兩斷', [175, 132, 1.3, -.06], [322, 148, 2.1, .04], 'in'],
-    [IMPACT, '命中 · 森冠斷海', [346, 150, 3.5, 0], [350, 154, 3.9, 0], 'out'],
-    [11300, '殘光 · 樹海兩分', [320, 120, 1.6, 0], [250, 108, .95, 0], 'inOut'],
-    [12600, '終幕 · 森冠裁決', [215, 122, 1.55, 0], [215, 128, 1.7, 0], 'smooth']
+    // Extreme low angle at the hero's feet, craning up and out as the sky sword is hoisted.
+    [RAISE, '高舉 · 天劍指天', [160, 152, 4.6, -.16], [130, 72, 1.0, -.05], 'out'],
+    // Tight Dutch-angle push-in on the hero and the cocked blade while wind pours in.
+    [CHARGE, '蓄勢 · 風壓萬鈞', [166, 150, 3.4, .12], [158, 150, 4.8, .17], 'inOut', 140],
+    [DREAD, '威壓 · 天劍臨頭', [340, 160, 4.2, -.1], [334, 152, 4.8, -.05], 'out', 120],
+    // The camera tracks the blade from the raised sword down onto the foe.
+    [STRIKE, '裁決 · 一刀兩斷', [125, 35, .95, -.12], [300, 134, 2.1, .08], 'in', 90],
+    [FREEZE, '停格 · 刃落一瞬', [312, 138, 2.5, .07], [318, 140, 2.9, .04], 'out'],
+    [IMPACT, '命中 · 森冠斷海', [338, 150, 4.6, -.06], [358, 150, 3.3, .02], 'out'],
+    [IMPACT + 800, '殘光 · 樹海兩分', [320, 120, 1.6, 0], [250, 108, .95, 0], 'inOut'],
+    [IMPACT + 2100, '終幕 · 森冠裁決', [215, 122, 1.55, 0], [215, 128, 1.7, 0], 'smooth']
   ],
-  close: [[0, 2500], [4300, 6900], [IMPACT, 11300]],
-  lines: [['v', 2400, 3900], ['spin', 5700, 6900], ['zoom', 9900, IMPACT]],
-  flashes: [[2050, 280, .55, 'color'], [7880, 200, .3, '#ffffff'], [9500, 180, .35, 'color'], [IMPACT, 650, .95, '#f6fff0']],
+  close: [[0, 2500], [4300, 6900], [CHARGE, STRIKE], [FREEZE, IMPACT + 800]],
+  lines: [['v', 2400, 3900], ['spin', 5700, 6900], ['h', CHARGE, STRIKE], ['zoom', STRIKE, FREEZE]],
+  flashes: [
+    [2050, 280, .55, 'color'], [7880, 200, .3, '#ffffff'], [9500, 180, .35, 'color'],
+    [CHARGE + 40, 160, .25, 'color'], [FREEZE, 110, .85, '#ffffff'], [IMPACT, 750, 1, '#f6fff0']
+  ],
   shake(t) {
     let s = 0;
     if (t >= 2050) s += 7 * Math.exp(-(t - 2050) / 220);
     if (t >= 2300 && t < 4300) s += 1.6 * (1 - span(t, 3600, 4300));
     for (const stepAt of [7350, 7850]) if (t >= stepAt) s += 3.5 * Math.exp(-(t - stepAt) / 180);
-    if (t >= 8700 && t < IMPACT) s += span(t, 8700, IMPACT) * 2.2;
-    if (t >= IMPACT) s += 9 * Math.exp(-(t - IMPACT) / 380);
+    if (t >= 8700 && t < CHARGE) s += span(t, 8700, CHARGE) * 1.6;
+    if (t >= CHARGE && t < STRIKE) s += 1.6 + 3.4 * span(t, CHARGE, STRIKE) + 4 * Math.exp(-Math.max(0, t - CHARGE - 40) / 160);
+    if (t >= STRIKE && t < FREEZE) s += 3.5;
+    // Dead still during the freeze, so the impact lands with the heaviest shake of the spell.
+    if (t >= FREEZE && t < IMPACT) s = 0;
+    if (t >= IMPACT) s += 15 * Math.exp(-(t - IMPACT) / 420);
     return s;
   },
   pose: (t, w) => ({ hero: heroPose(t), foe: foePose(t, w) }),
