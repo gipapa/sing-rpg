@@ -1276,6 +1276,9 @@ body.songbook-battle { --score-panel-width: min(680px, 54vw); }
   background: #172331ed;
   border-color: #728185;
 }
+@media (orientation: landscape) and (max-height: 540px) {
+  .on-quest .battle-actions { gap: 2px; }
+}
 .on-quest .battle-tools,
 .on-quest.songbook-battle .battle-tools {
   top: max(64px, calc(env(safe-area-inset-top) + 52px));
