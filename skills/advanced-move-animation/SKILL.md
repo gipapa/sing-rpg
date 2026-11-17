@@ -11,8 +11,8 @@ plan and a heavy finishing blow — and ship it without breaking the game around
 ## When this applies
 
 Use it when asked to create, redo or polish a skill / spell / special-move / ultimate cinematic,
-make an attack "more epic", add camera work to a move, or add a finale such as a giant-scale
-overhead slash. It assumes the animation is drawn by code (Canvas 2D, WebGL, a game engine's
+make an attack "more epic", fix a move that "doesn't look good", add camera work to a move, or add
+a finale such as a giant-scale overhead slash. It assumes the animation is drawn by code (Canvas 2D, WebGL, a game engine's
 draw calls) so that camera, actors and effects are functions of time.
 
 Do not use it for menu/UI transitions, editing recorded video, drawing sprite sheets by hand,
@@ -52,11 +52,17 @@ tuning damage numbers, or audio work.
    tuples and `cameraAt`, actor poses, back/front layers, impact/warp/hit-stop and freeze, reduced
    motion, letterbox bars and title card. Reuse the project's helpers instead of inventing a second
    system.
-4. **Verify** with [references/testing-and-qa.md](references/testing-and-qa.md): every-frame render
+4. **Look at real frames** with [references/visual-review.md](references/visual-review.md):
+   render a contact sheet of key frames through the actual player when available,
+   write down what fails to read, fix it and render again. Do this every time.
+   Passing tests says nothing about whether the move looks good.
+   When a move is reported as "not good-looking", start here, before changing the storyboard.
+5. **Verify** with [references/testing-and-qa.md](references/testing-and-qa.md): every-frame render
    tests against a strict mock context, storyboard invariants, a smoke run through the real scene,
-   and the quality checklist. If you cannot watch it in a real browser, say so in your report.
-5. **Report** the shot list with timings, what changed per file, test results, what was not
-   visually verified, and any pre-existing issues you left alone.
+   and the quality checklist.
+6. **Report** the shot list with timings, what changed per file, what the frame review found and
+   fixed, test results, how frames were viewed, any unverified visual behaviour, and any
+   pre-existing issues you left alone.
 
 ## What "epic" means here
 
@@ -72,4 +78,6 @@ A move reads as epic when it has **escalation and contrast**, not just more part
 - **silence before the blow** — shake and motion drop to zero in a short freeze, then the impact
   gets the biggest flash, shake, slash and enemy reaction of the whole sequence;
 - **readable actors** — the hero and foe visibly anticipate, act, react and recover, so the
-  effects are driven by bodies rather than floating on top.
+  effects are driven by bodies rather than floating on top;
+- **readable shapes** — masses separate from the background, giants have an identifiable reveal,
+  weapons keep their silhouette at the chosen scale, and flashes leave the contact and reaction readable.

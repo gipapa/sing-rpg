@@ -55,12 +55,20 @@ resolves `true` at the expected duration and passes through every caption.
 
 ## 3. Visual review
 
-When a browser is available, play the move at full speed and scrub key frames: each shot's first
-and last frame, the freeze, the impact and its first 300 ms, and the title. Check framing against
-the storyboard table. If screenshots or a browser are not available, report the visual check as
-not done.
+Structural tests cannot tell whether the move looks good. Always render and critique a contact
+sheet: see [visual-review.md](visual-review.md). Use an available supported browser tool or CLI;
+an approximate renderer cannot establish actual colour, compositing or title quality. When a browser is available, also
+play the move at full speed once to judge motion and rhythm, which still frames cannot show. Report
+which method you used; if neither was possible, say the visual check was not done.
 
 ## 4. Quality checklist
+
+Readability (checked on rendered frames)
+- [ ] Every large mass contrasts in value with its background at the heights the camera shows.
+- [ ] Material cues suit the project; unwanted regular bars or stripes don't read as UI or a chart.
+- [ ] Each apparition has an identifiable reveal, and transitions don't leave an unexplained slab.
+- [ ] Giant weapons keep a recognizable silhouette and sufficient separation between planes.
+- [ ] Contact and reaction remain readable around any deliberate impact flash; inspect +50 to +300 ms.
 
 Story and design
 - [ ] One-sentence concept; one motif repeated across weapon, world, apparition, slash and afterglow.
@@ -101,3 +109,6 @@ Safety and behaviour
 | Tests pass but frames differ every run | `Math.random` in effects | Use a seeded hash `rand(i, seed)` |
 | Damage applied twice or on cancel | Settlement inside the animation or on every resolve | Settle once in the caller, only when playback resolves completed |
 | Node tests cannot import the plan | Plan or registry imports the DOM | Move the registry and plans into DOM-free modules |
+| All tests pass but the move "looks bad" | Shapes don't read: low value contrast, outline-only masses | Render a contact sheet and apply [visual-review.md](visual-review.md) §3 |
+| Impact is a white frame | Long full-strength flash plus stacked additive layers enlarged by the close-up zoom | Short partial flash, thin cores, wider impact camera, physical debris |
+| Giant apparition reads as a box or ceiling | The camera frames only its base; it fades in place | Faster rise, `out` crane, transform it into the weapon |

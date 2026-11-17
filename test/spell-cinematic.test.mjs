@@ -162,6 +162,12 @@ test('滄海王令 crowns the sea, draws back, tracks one thrust, holds before c
   assert.ok(reduced.foe.dx < normal.foe.dx, 'reduced-motion knockback is smaller');
 });
 
+test('滄海王令 impact flash stays brief and partial', () => {
+  // A long full-strength white flash hid the three prongs and the foe in rendered frames.
+  const flash = tidePlan.flashes.find(f => f[0] === tidePlan.impact);
+  assert.ok(flash[1] <= 300 && flash[2] <= .6, 'short, partial impact flash');
+});
+
 test('滄海王令 shot endpoints frame their subjects inside the rotated viewport', () => {
   // Explicit subject anchors for both endpoints: tips, hero, foe, crown, then contact.
   const subjects = [
