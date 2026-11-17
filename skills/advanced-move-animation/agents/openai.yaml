@@ -1,0 +1,4 @@
+interface:
+  display_name: "Advanced Move Animation"
+  short_description: "Storyboard and build epic skill cinematics"
+  default_prompt: "Use $advanced-move-animation to turn this skill into an epic multi-shot cinematic with a low-angle charge, pre-hit freeze and heavy finishing blow."
