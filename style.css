@@ -1371,3 +1371,40 @@ body.songbook-battle { --score-panel-width: min(680px, 54vw); }
   }
   .spell-progress { position: absolute; bottom: 0; left: 0; right: 0; }
 }
+
+/* Legendary weapon book: eight fixed entries, separate from the regular collections. */
+#legendBook {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+#legendBook[hidden] { display: none; }
+#legendBook article {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--edge);
+  border-left: 3px solid var(--legend-color);
+  background: var(--panel);
+}
+#legendBook article.locked { border-left-color: var(--edge); }
+#legendBook canvas {
+  flex: none;
+  width: 88px;
+  height: 88px;
+  image-rendering: pixelated;
+  background: radial-gradient(circle, #2b3a2e, #182019);
+}
+#legendBook article.locked canvas { background: #1b211c; }
+#legendBook div { min-width: 0; }
+#legendBook strong { display: block; font: 20px var(--serif); color: var(--legend-color); }
+#legendBook article.locked strong { color: inherit; }
+#legendBook small { display: block; font-size: 11px; overflow-wrap: anywhere; }
+#legendBook p { margin: 6px 0 2px; font-size: 13px; }
+#legendBook .legend-pending { color: var(--dim); }
+#legendBook .legend-ready { color: var(--legend-color); }
+.legend-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.legend-actions button { min-height: 40px; font-size: 13px; }
+.legend-note { color: var(--gold); font-size: 13px; }
+.atlas-only[hidden] { display: none !important; }

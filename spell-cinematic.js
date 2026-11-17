@@ -1,12 +1,8 @@
 import { spellScene } from './scene.js';
 import { FOE, duration, span, eases, rand, warp, cameraAt } from './spell-fx.js';
+import { spellPlans } from './spell-plans.js';
 import { starsPlan } from './spell-stars.js';
-import { ringsPlan } from './spell-rings.js';
-import { petalsPlan } from './spell-petals.js';
-
-// Each spell owns its choreography: camera shots, impact beat, speed lines, flashes,
-// shake curve and the world-space effect layers drawn behind/in front of the actors.
-export const spellPlans = { stars: starsPlan, rings: ringsPlan, petals: petalsPlan };
+export { spellPlans, hasCinematic } from './spell-plans.js';
 
 // Screen-space finishing in a 960×480 frame: lines, flashes, vignette and the title card.
 function drawOverlay(c, t, ctx, plan, whip) {
@@ -55,8 +51,9 @@ function drawOverlay(c, t, ctx, plan, whip) {
   const v = c.createRadialGradient(480, 240, 160, 480, 240, 560);
   v.addColorStop(0, '#00000000'); v.addColorStop(1, '#000000c0');
   c.globalAlpha = 1; c.fillStyle = v; c.fillRect(0, 0, 960, 480);
-  if (t >= 10000) {
-    const k = span(t, 10000, 10700), out = 1 - span(t, 11200, duration), scale = 1.12 - .12 * eases.out(k);
+  const end = plan.duration ?? duration, titleAt = plan.titleAt ?? 10000;
+  if (t >= titleAt) {
+    const k = span(t, titleAt, titleAt + 700), out = 1 - span(t, end - 400, end), scale = 1.12 - .12 * eases.out(k);
     c.save();
     c.translate(480, 236); c.scale(scale, scale);
     c.globalAlpha = k * out;
@@ -98,16 +95,19 @@ export function spellCinematic(dialog) {
     state.last = now;
     const spell = state.style.spell, foe = state.scene.foe;
     const plan = spellPlans[spell.id] ?? starsPlan;
-    const t = Math.min(state.elapsed, duration), w = warp(t, plan.impact);
+    const end = plan.duration ?? duration;
+    const t = Math.min(state.elapsed, end), w = warp(t, plan.impact);
+    const pose = plan.pose?.(t, w, reduced.matches);
     const { shot, cam, whip } = cameraAt(plan, t, reduced.matches);
     const ctx = {
       color: state.style.color, reduced: reduced.matches, spell,
-      foeY: FOE[1] - (foe?.base === 5 ? 5 : 3) * 5
+      foeY: FOE[1] - (foe?.base === 5 ? 5 : 3) * 5, pose
     };
     spellScene(canvas, { ...state.scene, time: w / 1000,
       camera: { x: cam[0], y: cam[1], zoom: cam[2], roll: cam[3] },
       attack: t >= plan.attack[0] && t < plan.attack[1],
       hit: t >= plan.impact && t < plan.impact + 1300 && Math.floor(t / 70) % 2 === 0,
+      heroPose: pose?.hero, foePose: pose?.foe,
       back: g => plan.back(g, t, w, ctx), front: g => plan.front(g, t, w, ctx) });
     c.save();
     c.scale(canvas.width / 960, canvas.height / 480);
@@ -119,8 +119,8 @@ export function spellCinematic(dialog) {
     const bar = Math.round(bars * canvas.height / 480);
     c.fillStyle = '#050a12'; c.fillRect(0, 0, canvas.width, bar); c.fillRect(0, canvas.height - bar, canvas.width, bar);
     label.textContent = shot[1];
-    progress.style.width = Math.min(100, t / duration * 100) + '%';
-    if (state.elapsed >= duration) finish(true);
+    progress.style.width = Math.min(100, t / end * 100) + '%';
+    if (state.elapsed >= end) finish(true);
     else frame = requestAnimationFrame(paint);
   }
   return {
@@ -128,7 +128,7 @@ export function spellCinematic(dialog) {
       finish(false);
       bars = 22;
       dialog.querySelector('#spellTitle').textContent = style.spell.name;
-      dialog.querySelector('#spellCaster').textContent = name + '　對　' + (scene.foe?.name ?? '星空');
+      dialog.querySelector('#spellCaster').textContent = name + '　對　' + (scene.foeName ?? scene.foe?.name ?? '星空');
       dialog.style.setProperty('--spell-color', style.color);
       return new Promise(resolve => {
         playback = { style, scene, resolve, elapsed: 0, last: performance.now() };

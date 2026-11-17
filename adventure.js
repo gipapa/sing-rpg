@@ -1,4 +1,5 @@
 import { realms, monsters, equipment, elements, skills, sovereignWards } from './catalog.js';
+import { rollLegend } from './legends.js';
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 export function newTrip(country) {
@@ -127,6 +128,8 @@ function victory(game, trip) {
   game.owned[reward.id] = (game.owned[reward.id] || 0) + 1;
   game.total++;
   game.lastDrop = trip.drop = reward.id;
+  // Sovereigns may additionally drop their realm's legendary weapon.
+  game.lastLegend = trip.legend = trip.step === 11 ? rollLegend(game, trip.country) : null;
   trip.stage = 'loot';
   trip.remaining = 2.6;
   if (trip.step === 11 && !game.cleared.includes(trip.country)) {

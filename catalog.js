@@ -196,6 +196,8 @@ export function newGame() {
     total: 0,
     story: -1,
     lastDrop: null,
+    lastLegend: null,
+    legends: {},
     simpleAnimations: false
   };
 }

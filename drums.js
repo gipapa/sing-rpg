@@ -1,4 +1,4 @@
-import { drumStyle } from './drum-spells.js';
+import { battleStyle } from './legends.js';
 
 export function drumVolume(game) {
   return typeof game.drumVolume === 'number' && Number.isFinite(game.drumVolume)
@@ -77,7 +77,7 @@ export function battleDrums(field, game, onCast = () => {}) {
     rippleAnimation?.cancel();
   }
   function start(input) {
-    style = drumStyle(game);
+    style = battleStyle(game);
     rhythm = drumCharge();
     hud.hidden = false;
     active = true;

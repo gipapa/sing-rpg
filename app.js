@@ -7,7 +7,8 @@ import {camp} from './camp.js';
 import {countdown} from './countdown.js';
 import {battleDrums} from './drums.js';
 import {songbook} from './songbook.js';
-import {spellCinematic} from './spell-cinematic.js';
+import {spellCinematic,hasCinematic} from './spell-cinematic.js';
+import {legends} from './legends.js';
 const $=id=>document.getElementById(id);
 const defaultList='https://music.apple.com/tw/playlist/華語流行樂-重溫熱播/pl.6d8228f57b864a4296dc02d9761a0d9b';
 function playlistURL(input){
@@ -33,6 +34,7 @@ $('playlistForm').onsubmit=event=>{
 };
 const saveKey = 'eight-realms-v1';
 const data = read(saveKey) || newGame();
+data.legends ??= {};
 const drums = battleDrums($('field'), data, showSpell);
 const cinematic = spellCinematic($('spellDialog'));
 let spellPlaying = false;
@@ -51,7 +53,7 @@ async function showSpell(style) {
   hideCutIn();
   let completed;
   try {
-    completed = data.simpleAnimations
+    completed = data.simpleAnimations || !hasCinematic(style.spell)
       ? true
       : await cinematic.play(style, {
         country: data.country, area: currentArea(trip), gear: [...data.loadouts[0]],
@@ -91,7 +93,19 @@ async function showSpell(style) {
 function persist() {
   save(saveKey, data);
 }
-const lobby = camp(data, persist);
+// Camp-only skill preview: a demonstration duel that never touches battle, charge or progress.
+function previewSpell(legend) {
+  if (running || pending || spellPlaying) return;
+  const country = legend.country;
+  const foe = monsters.find((m) => m.country === country && m.base === 3);
+  // Unowned weapons stay hidden: the hero keeps the current blade until the legend is found.
+  const gear = [...data.loadouts[0]];
+  if (data.legends[legend.index]) gear[2] = legend.id;
+  return cinematic.play({ spell: legend.spell, tint: null, color: legend.color }, {
+    country, area: { land: 3, element: realms[country].sub[0] }, gear, foe, foeName: '示範敵人・' + foe.name
+  }, data.name);
+}
+const lobby = camp(data, persist, previewSpell);
 const songbookUI = songbook();
 let mic = null,
   running = false,
@@ -157,7 +171,7 @@ function renderBattle() {
   $('enemy').textContent = battle
     ? foe.name
     : trip.stage === 'loot'
-      ? equipment[trip.drop].name
+      ? equipment[trip.drop].name + (trip.legend != null ? '　＋　傳說武器・' + legends[trip.legend].name : '')
       : '前往' + realm.land[area.land];
   $('hp').max = trip.maxHp || 1;
   $('hp').value = battle ? trip.hp : 0;

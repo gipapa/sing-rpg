@@ -19,6 +19,8 @@ import { countdown } from './countdown.js';
 import { drumSpells, drumColors, drumStyle } from './drum-spells.js';
 import { drumVolume } from './drums.js';
 import { echoSettings } from './mic.js';
+import { legends, LEGEND_DROP_RATE, LEGEND_DAMAGE, isLegendId, equippedLegend, equipLegend, unequipLegend, legendIcon } from './legends.js';
+import { hasCinematic } from './spell-plans.js';
 
 const $ = (id) => document.getElementById(id);
 const characterName = (game, id) => (id === 0 ? game.name : companions[id - 1]);
@@ -32,7 +34,7 @@ function button(label, action) {
 function selected(el, on) {
   el.setAttribute('aria-pressed', String(on));
 }
-export function camp(game, persist) {
+export function camp(game, persist, previewSpell = () => {}) {
   function renderHeroPortrait() {
     $('heroPhotoPreview').hidden = !game.heroPortrait;
     $('heroPortraitPreview').hidden = !!game.heroPortrait;
@@ -119,6 +121,7 @@ export function camp(game, persist) {
     preview = game.country,
     member = 0,
     isMonster = true,
+    legendBook = false,
     page = 0;
   const pins = realms.map((realm, id) => {
     const pin = button(realm.name, () => {
@@ -259,9 +262,23 @@ export function camp(game, persist) {
           const item = equipment[id];
           if (item.slot === i) select.add(new Option(item.name, id));
         }
+        // Only the bard can wield a legendary weapon; it swaps the drum spell for its own skill.
+        if (member === 0 && i === 2) {
+          const group = document.createElement('optgroup');
+          group.label = '傳說武器';
+          for (const legend of legends) {
+            if (game.legends?.[legend.index]) group.append(new Option(legend.name + '（' + legend.spell.name + '）', legend.id));
+          }
+          if (group.children.length) select.append(group);
+        }
         select.value = gear[i];
         select.onchange = () => {
-          gear[i] = Number(select.value);
+          const value = Number(select.value);
+          if (isLegendId(value)) equipLegend(game, value - legends[0].id);
+          else {
+            if (isLegendId(gear[i])) unequipLegend(game);
+            gear[i] = value;
+          }
           persist();
           portrait($('portrait'), gear, member);
           renderSummary();
@@ -285,7 +302,69 @@ export function camp(game, persist) {
         a.form - b.form || a.country - b.country || a.element.localeCompare(b.element) || a.base - b.base
     )
   );
+  function renderLegends() {
+    const owned = legends.filter((legend) => game.legends?.[legend.index]).length;
+    const current = equippedLegend(game);
+    $('bookProgress').max = legends.length;
+    $('bookProgress').value = owned;
+    $('bookCount').textContent = '已取得 ' + owned + ' / ' + legends.length;
+    $('legendBook').replaceChildren(
+      ...legends.map((legend) => {
+        const have = game.legends?.[legend.index] || 0,
+          ready = hasCinematic(legend.spell),
+          realm = realms[legend.country];
+        const card = document.createElement('article'),
+          icon = document.createElement('canvas'),
+          text = document.createElement('div');
+        card.className = have ? 'owned' : 'locked';
+        card.style.setProperty('--legend-color', legend.color);
+        icon.width = icon.height = 88;
+        icon.setAttribute('role', 'img');
+        icon.setAttribute('aria-label', have ? legend.name + '外觀' : legend.name + '剪影（未取得）');
+        legendIcon(icon, legend, !!have);
+        const line = (tag, value) => {
+          const el = document.createElement(tag);
+          el.textContent = value;
+          text.append(el);
+          return el;
+        };
+        line('small', '#L0' + (legend.index + 1) + ' · ' + (have ? '已取得 ×' + have + (current === legend ? ' · 裝備中' : '') : '未取得'));
+        line('strong', legend.name);
+        line('small', '掉落：' + realm.name + '・' + legend.boss + '（' + LEGEND_DROP_RATE * 100 + '%）');
+        line('p', '技能「' + legend.spell.name + '」· 傷害 ' + LEGEND_DAMAGE);
+        line('small', ready ? '專屬動畫：已完成' : '專屬動畫：製作中 · 戰鬥中暫以 cut-in 結算').className = ready ? 'legend-ready' : 'legend-pending';
+        const actions = document.createElement('div');
+        actions.className = 'legend-actions';
+        const preview = button(ready ? '預覽技能' : '動畫製作中', () => previewSpell(legend));
+        preview.disabled = !ready;
+        actions.append(preview);
+        if (have) {
+          const equip = button(current === legend ? '卸下' : '裝備', () => {
+            if (current === legend) unequipLegend(game);
+            else equipLegend(game, legend.index);
+            persist();
+            renderSummary();
+            renderLegends();
+          });
+          equip.setAttribute('aria-pressed', String(current === legend));
+          actions.append(equip);
+        }
+        text.append(actions);
+        card.append(icon, text);
+        return card;
+      })
+    );
+  }
   function renderBook() {
+    selected($('legendTab'), legendBook);
+    for (const el of document.querySelectorAll('.atlas-only')) el.hidden = legendBook;
+    $('legendBook').hidden = !legendBook;
+    if (legendBook) {
+      selected($('monsterTab'), false);
+      selected($('gearTab'), false);
+      renderLegends();
+      return;
+    }
     const book = journals[Number(isMonster)],
       known = isMonster ? game.seen : game.owned;
     selected($('monsterTab'), isMonster);
@@ -349,11 +428,17 @@ export function camp(game, persist) {
     page = 0;
     renderBook();
   }
+  $('legendTab').onclick = () => {
+    legendBook = true;
+    renderBook();
+  };
   $('monsterTab').onclick = () => {
+    legendBook = false;
     isMonster = true;
     resetBook();
   };
   $('gearTab').onclick = () => {
+    legendBook = false;
     isMonster = false;
     resetBook();
   };
@@ -394,6 +479,9 @@ export function camp(game, persist) {
       renderHeroPortrait();
       $('heroName').value = game.name;
       simpleAnimations.checked = !!game.simpleAnimations;
+      const legend = equippedLegend(game);
+      $('legendSpellNote').hidden = !legend;
+      if (legend) $('legendSpellNote').textContent = '主角裝備「' + legend.name + '」中，集氣招式暫由「' + legend.spell.name + '」取代；卸下後恢復這裡的設定。';
       $('nameStatus').textContent = '';
     }
   }
@@ -446,7 +534,8 @@ export function camp(game, persist) {
       step === 2
         ? (intro ? companions[0] : realm.friend) +
           ' 加入隊伍' +
-          (!intro ? '　·　取得 ' + equipment[game.lastDrop].name : '')
+          (!intro ? '　·　取得 ' + equipment[game.lastDrop].name : '') +
+          (!intro && game.lastLegend != null ? '　·　傳說武器 ' + legends[game.lastLegend].name : '')
         : '';
     $('storyArt').classList.toggle('opening', step === 0);
     storyScene($('storyCanvas'), chapter, step, game);

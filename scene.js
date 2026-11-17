@@ -1,5 +1,6 @@
 import {equipment, realms, elements} from './catalog.js';
 import {drawDrumSpell} from './drum-spells.js';
+import {legendOf, drawLegendWeapon} from './legends.js';
 const world = document.querySelector('#world');
 const ctx = world.getContext('2d');
 const backdrop = document.createElement('canvas');
@@ -115,8 +116,9 @@ function buildVista(ice) {
 }
 const vistas={forest:backdrop,ice:buildVista(true),ember:buildVista(false)};
 const characterColors = ['#ba805c', '#75909a', ...realms.map((r) => r.color)];
-function hero(c, x, y, gear, person, attack, step) {
-  const [body, head, weapon] = gear.map((id) => equipment[id]);
+function hero(c, x, y, gear, person, attack, step, weaponAngle) {
+  const [body, head] = gear.map((id) => equipment[id]);
+  const legend = legendOf(gear[2]), weapon = legend ? null : equipment[gear[2]];
   const cloak = body?.color || characterColors[person];
   const trim = body ? realms[body.country].color : '#a8b8ab';
   c.save();
@@ -170,7 +172,12 @@ function hero(c, x, y, gear, person, attack, step) {
   rect(c, 4, -20, 4, 7, trim);
   rect(c, 7, -16, 4, 3, '#d6a07b');
   c.translate(9, -14);
-  c.rotate(attack ? 1.14 : 0.42);
+  c.rotate(weaponAngle ?? (attack ? 1.14 : 0.42));
+  if (legend) {
+    drawLegendWeapon(c, legend);
+    c.restore();
+    return;
+  }
   const blade = weapon?.color || '#c3d1cc';
   if (weapon?.base === 5) {
     rect(c, 0, -24, 2, 24, '#98795e');
@@ -419,7 +426,8 @@ export function portrait(canvas, gear, person, closeUp = false) {
 // Camera coordinates share the world's pixel grid, so equipment and foes stay accurate.
 // Cinematic renderer: `back` paints world-space effects behind the actors and
 // `front` paints them over the actors, so spell effects follow every camera move.
-export function spellScene(canvas, { country, area, gear, foe, time, camera, attack, hit, back, front }) {
+// Optional poses let a cinematic move the actors: heroPose {dx, dy, angle}, foePose {dx, dy, tilt}.
+export function spellScene(canvas, { country, area, gear, foe, time, camera, attack, hit, back, front, heroPose, foePose }) {
   const c = canvas.getContext('2d');
   c.save();
   c.setTransform(canvas.width / W, 0, 0, canvas.height / 240, 0, 0);
@@ -439,12 +447,13 @@ export function spellScene(canvas, { country, area, gear, foe, time, camera, att
   c.drawImage(land, 0, 0);
   weather(c, area.element, time);
   back?.(c);
-  hero(c, 150, 178, gear, 0, attack, 0);
+  hero(c, 150 + (heroPose?.dx ?? 0), 178 + (heroPose?.dy ?? 0), gear, 0, attack, 0, heroPose?.angle);
   if (foe) {
     c.save();
-    c.translate(660, 0);
+    c.translate(330 + (foePose?.dx ?? 0), 178 + (foePose?.dy ?? 0));
+    c.rotate(foePose?.tilt ?? 0);
     c.scale(-1, 1);
-    monster(c, 330, 178, foe, foe.base === 5 ? 5 : 3, time, hit);
+    monster(c, 0, 0, foe, foe.base === 5 ? 5 : 3, time, hit);
     c.restore();
   }
   front?.(c);

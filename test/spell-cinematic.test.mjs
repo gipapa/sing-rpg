@@ -4,9 +4,10 @@ import { duration, cameraAt, warp } from '../spell-fx.js';
 import { starsPlan } from '../spell-stars.js';
 import { ringsPlan } from '../spell-rings.js';
 import { petalsPlan } from '../spell-petals.js';
+import { forestPlan } from '../spell-forest.js';
 import { drumSpells } from '../drum-spells.js';
 
-const plans = { stars: starsPlan, rings: ringsPlan, petals: petalsPlan };
+const plans = { stars: starsPlan, rings: ringsPlan, petals: petalsPlan, 'legend-0': forestPlan };
 
 // Minimal 2D context that rejects the inputs real canvases throw on.
 function mockContext() {
@@ -31,6 +32,7 @@ function mockContext() {
 
 test('every drum spell has its own cinematic plan', () => {
   for (const spell of drumSpells) assert.ok(plans[spell.id], spell.id);
+  for (const plan of Object.values(plans)) assert.ok(plan.impact < (plan.duration ?? duration));
   assert.notEqual(ringsPlan.shots, starsPlan.shots);
   assert.notEqual(petalsPlan.shots, starsPlan.shots);
 });
@@ -41,7 +43,7 @@ for (const [id, plan] of Object.entries(plans)) {
     assert.equal(plan.shots[0][0], 0);
     plan.shots.forEach((shot, i) => {
       if (i) assert.ok(shot[0] > plan.shots[i - 1][0]);
-      assert.ok(shot[0] < duration);
+      assert.ok(shot[0] < (plan.duration ?? duration));
       assert.notDeepEqual(shot[2], shot[3], 'camera moves within ' + shot[1]);
     });
     assert.equal(new Set(plan.shots.map(shot => shot[1])).size, plan.shots.length);
@@ -51,7 +53,7 @@ for (const [id, plan] of Object.entries(plans)) {
   });
 
   test(id + ' renders every frame in full and reduced motion without invalid canvas calls', () => {
-    for (const reduced of [false, true]) for (let t = 0; t <= duration; t += 20) {
+    for (const reduced of [false, true]) for (let t = 0; t <= (plan.duration ?? duration); t += 20) {
       const { cam, shot } = cameraAt(plan, t, reduced);
       assert.ok(cam.every(Number.isFinite), id + ' camera at ' + t);
       assert.ok(shot[1]);
@@ -60,6 +62,8 @@ for (const [id, plan] of Object.entries(plans)) {
       plan.back(mockContext(), t, w, ctx);
       plan.front(mockContext(), t, w, ctx);
       assert.ok(Number.isFinite(plan.shake(t)));
+      const pose = plan.pose?.(t, w, reduced);
+      if (pose) for (const value of [...Object.values(pose.hero), ...Object.values(pose.foe)]) assert.ok(Number.isFinite(value));
     }
   });
 }

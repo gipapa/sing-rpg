@@ -64,7 +64,7 @@ export const warp = (t, impact) => t < impact ? t : t < impact + 260 ? impact + 
 export function cameraAt(plan, t, reduced) {
   const { shots } = plan;
   const index = shots.findLastIndex(shot => t >= shot[0]);
-  const shot = shots[index], end = shots[index + 1]?.[0] ?? duration;
+  const shot = shots[index], end = shots[index + 1]?.[0] ?? plan.duration ?? duration;
   if (reduced) return { shot, cam: [240, 126, 1.1, 0], whip: 0 };
   let cam = mix(shot[2], shot[3], eases[shot[4]](span(t, shot[0], end)));
   let whip = 0;

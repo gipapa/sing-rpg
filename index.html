@@ -95,19 +95,20 @@
           </div>
         </div>
         <div class="controls">
-          <button id="monsterTab">怪物圖鑑</button><button id="gearTab">裝備圖鑑</button>
-          <select id="bookCountry" aria-label="篩選國家">
+          <button id="monsterTab">怪物圖鑑</button><button id="gearTab">裝備圖鑑</button><button id="legendTab">傳說圖鑑</button>
+          <select id="bookCountry" class="atlas-only" aria-label="篩選國家">
             <option value="">全部國家</option>
           </select>
-          <select id="bookState" aria-label="登錄狀態">
+          <select id="bookState" class="atlas-only" aria-label="登錄狀態">
             <option>全部</option>
             <option>已登錄</option>
             <option>未登錄</option>
           </select>
-          <input id="query" type="search" placeholder="名稱、屬相或種類" aria-label="搜尋圖鑑" />
+          <input id="query" class="atlas-only" type="search" placeholder="名稱、屬相或種類" aria-label="搜尋圖鑑" />
         </div>
-        <div id="atlas"></div>
-        <div class="pager">
+        <div id="atlas" class="atlas-only"></div>
+        <div id="legendBook" hidden></div>
+        <div class="pager atlas-only">
           <span id="pageCount"></span><button id="prev">上一頁</button><button id="next">下一頁</button>
         </div>
       </section>
@@ -139,6 +140,7 @@
           <p>敲鼓每下、有效歌聲每累積一秒隨機集氣 1–5%，集滿自動放招。集氣持續到本次回營。</p>
           <label for="drumSpell">招式</label>
           <select id="drumSpell"></select>
+          <p id="legendSpellNote" class="legend-note" hidden></p>
           <label for="drumColor">配色</label>
           <select id="drumColor"></select>
           <div class="drum-volume">
