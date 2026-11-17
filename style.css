@@ -1336,3 +1336,35 @@ body.songbook-battle { --score-panel-width: min(680px, 54vw); }
   .spell-heading h2 { font-size: 23px; }
   .spell-footer { font-size: 11px; }
 }
+@media (orientation: landscape) and (max-height: 540px) {
+  #spellDialog {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+    max-height: none;
+    overflow: hidden;
+  }
+  #spellCanvas {
+    height: 100%;
+    max-height: none;
+  }
+  .spell-heading, .spell-footer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    padding: 6px max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left));
+    gap: 8px;
+  }
+  .spell-heading {
+    top: 0;
+    background: linear-gradient(#090f1be6, #090f1b00);
+  }
+  .spell-heading small { font-size: 10px; }
+  .spell-heading h2 { font-size: 20px; }
+  .spell-heading > span { display: none; }
+  .spell-footer {
+    bottom: 3px;
+    font-size: 11px;
+    background: linear-gradient(#090f1b00, #090f1be6);
+  }
+  .spell-progress { position: absolute; bottom: 0; left: 0; right: 0; }
+}
