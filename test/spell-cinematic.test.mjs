@@ -5,9 +5,11 @@ import { starsPlan } from '../spell-stars.js';
 import { ringsPlan } from '../spell-rings.js';
 import { petalsPlan } from '../spell-petals.js';
 import { forestPlan } from '../spell-forest.js';
+import { tidePlan } from '../spell-tide.js';
+import { spellPlans } from '../spell-plans.js';
 import { drumSpells } from '../drum-spells.js';
 
-const plans = { stars: starsPlan, rings: ringsPlan, petals: petalsPlan, 'legend-0': forestPlan };
+const plans = spellPlans;
 
 // Minimal 2D context that rejects the inputs real canvases throw on.
 function mockContext(strictAlpha = false) {
@@ -63,8 +65,8 @@ for (const [id, plan] of Object.entries(plans)) {
       assert.ok(shot[1]);
       const ctx = { color: '#a1dcf2', reduced, spell: { id }, foeY: 163 };
       const w = plan.warp ? plan.warp(t) : warp(t, plan.impact);
-      // 森冠裁決 also guards against alphas that real canvases would ignore.
-      const strict = id === 'legend-0';
+      // New legendary plans also guard against alphas that real canvases would ignore.
+      const strict = id.startsWith('legend-');
       plan.back(mockContext(strict), t, w, ctx);
       plan.front(mockContext(strict), t, w, ctx);
       assert.ok(Number.isFinite(plan.shake(t)));
@@ -116,4 +118,89 @@ test('森冠裁決 finale: low-angle hoist, charge, dread, tracking swing, pre-h
   // The bars close for the charge and the freeze through the impact.
   for (const t of [charge + 100, freeze + 100, impact + 300]) assert.ok(plan.close.some(([a, b]) => t >= a && t < b), 'bars at ' + t);
   assert.ok(raise < charge && dread < strike);
+});
+
+test('滄海王令 crowns the sea, draws back, tracks one thrust, holds before contact and pierces', () => {
+  const plan = tidePlan;
+  const [form, raise, charge, dread, strike, freeze, impact, after, title] = plan.shots.slice(6);
+  assert.ok(plan.impact / plan.duration >= .75 && plan.impact / plan.duration <= .8);
+  assert.equal(impact[0], plan.impact);
+  assert.ok(raise[2][2] >= 4 && raise[3][1] < raise[2][1]);
+  assert.ok(charge[3][2] > charge[2][2]);
+  assert.ok(strike[3][0] > strike[2][0] + 100, 'camera follows thrust to the right');
+  assert.ok(form[2][2] < 1 && after[3][2] < 1, 'scale contrasts with the close-ups');
+  const pose = t => plan.pose(t, plan.warp(t));
+  assert.ok(pose(dread[0]).hero.dx < -10, 'draw back to coil the thrust');
+  assert.ok(pose(freeze[0]).hero.dx > pose(strike[0]).hero.dx + 40);
+  assert.deepEqual(pose(freeze[0]), pose(impact[0] - 1), 'both actors hold throughout the freeze');
+  // The charged 132 px trident stops short of the foe, then crosses it during contact.
+  const tip = t => 159 + pose(t).hero.dx + Math.sin(pose(t).hero.angle) * 132;
+  assert.ok(tip(freeze[0]) < 330 + pose(freeze[0]).foe.dx - 10);
+  assert.ok(tip(impact[0] + 150) > 330);
+  for (let t = freeze[0]; t < impact[0]; t += 5) assert.equal(plan.shake(t), 0);
+  for (let t = 0; t < impact[0]; t += 10) assert.ok(plan.shake(t) < plan.shake(impact[0]));
+  assert.equal(Math.max(...plan.flashes.map(f => f[2])), plan.flashes.find(f => f[0] === plan.impact)[2]);
+  assert.ok(plan.warp(impact[0]) - plan.warp(freeze[0]) <= 20.001);
+  for (let t = 0; t < plan.duration; t++) {
+    const step = plan.warp(t + 1) - plan.warp(t);
+    assert.ok(step >= 0 && step <= 1.00001, 'continuous monotonic clock at ' + t);
+  }
+  assert.ok(pose(dread[0] + 300).foe.tilt < -.1);
+  assert.ok(pose(impact[0] + 1100).foe.dx > pose(freeze[0]).foe.dx + 30);
+  for (const t of [charge[0] + 100, freeze[0] + 100, impact[0] + 300]) {
+    assert.ok(plan.close.some(([a, b]) => t >= a && t < b));
+  }
+  assert.ok(title[0] >= impact[0] + 2000 && plan.titleAt >= title[0]);
+  // No pose discontinuity at any cut or anticipation keyframe.
+  for (const t of [1100, 1400, 1900, 2200, 4400, 5000, 5500, 7000, 8000, 9000, 10200, 10800, 11250, 11650, 11800, 12450, 13850]) {
+    for (const actor of ['hero', 'foe']) for (const key of Object.keys(pose(t)[actor])) {
+      assert.ok(Math.abs(pose(t + .001)[actor][key] - pose(t - .001)[actor][key]) < .01, actor + key + ' at ' + t);
+    }
+  }
+  const normal = plan.pose(impact[0] + 1100, plan.warp(impact[0] + 1100));
+  const reduced = plan.pose(impact[0] + 1100, plan.warp(impact[0] + 1100), true);
+  assert.ok(reduced.foe.dx < normal.foe.dx, 'reduced-motion knockback is smaller');
+});
+
+test('滄海王令 shot endpoints frame their subjects inside the rotated viewport', () => {
+  // Explicit subject anchors for both endpoints: tips, hero, foe, crown, then contact.
+  const subjects = [
+    [[160, 133], [160, 130]], [[150, 158], [150, 156]],
+    [[240, 112], [240, 65]], [[336, 168], [338, 168]],
+    [[154, 152], [150, 158]], [[150, 154], [155, -140]],
+    [[155, 75], [155, 50]], [[150, 174], [150, 160]],
+    [[140, 158], [137, 160]], [[338, 168], [338, 168]],
+    [[150, 160], [318, 153]], [[318, 153], [320, 153]],
+    [[338, 153], [360, 153]], [[320, 153], [250, 130]],
+    [[230, 150], [225, 150]]
+  ];
+  tidePlan.shots.forEach((shot, i) => {
+    for (let end = 0; end < 2; end++) {
+      const [cx, cy, z, roll] = shot[2 + end], [sx, sy] = subjects[i][end];
+      const x = 240 + z * ((sx - cx) * Math.cos(roll) - (sy - cy) * Math.sin(roll));
+      const y = 126 + z * ((sx - cx) * Math.sin(roll) + (sy - cy) * Math.cos(roll));
+      assert.ok(x > 18 && x < 462 && y > 24 && y < 216, shot[1] + ' endpoint ' + end + ': ' + [x, y]);
+      // Invert all four viewport corners too, ensuring finite bounds for wide cranes.
+      for (const [vx, vy] of [[0, 0], [480, 0], [480, 240], [0, 240]]) {
+        const wx = cx + ((vx - 240) * Math.cos(roll) + (vy - 126) * Math.sin(roll)) / z;
+        const wy = cy + (-(vx - 240) * Math.sin(roll) + (vy - 126) * Math.cos(roll)) / z;
+        assert.ok(wx > -1200 && wx < 1800 && wy > -2000 && wy < 1000, 'background covers viewport');
+      }
+    }
+  });
+  // A linear crane plus zoom can accidentally dip the actor below frame midway.
+  for (let t = 8000; t < 9000; t += 10) {
+    const [cx, cy, z, roll] = cameraAt(tidePlan, t, false).cam;
+    const hero = tidePlan.pose(t, tidePlan.warp(t)).hero;
+    const faceY = 126 + z * ((154 + hero.dx - cx) * Math.sin(roll) + (151 + hero.dy - cy) * Math.cos(roll));
+    assert.ok(faceY > 24 && faceY < 216, 'hoist keeps hero readable at ' + t);
+  }
+  for (const [a, b] of [[3600, 4400], [10200, 10800]]) for (let t = a; t < b; t += 10) {
+    const [cx, cy, z, roll] = cameraAt(tidePlan, t, false).cam;
+    const foe = tidePlan.pose(t, tidePlan.warp(t)).foe;
+    for (const y of [158, 178]) {
+      const sy = 126 + z * ((330 + foe.dx - cx) * Math.sin(roll) + (y - cy) * Math.cos(roll));
+      assert.ok(sy > 24 && sy < 216, 'preview foe stays in close-up at ' + t);
+    }
+  }
 });

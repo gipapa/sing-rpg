@@ -65,13 +65,15 @@ test('only sovereign victories can drop a legend, alongside the regular reward',
 });
 
 test('a legendary skill deals exactly 10 in one settlement', () => {
-  const game = newGame();
-  game.story = null;
-  const trip = game.runs[0] = newTrip(0);
-  const boss = monsters.find((m) => m.country === 0 && m.base === 5);
-  Object.assign(trip, { step: 11, stage: 'battle', foe: boss.id, hp: 24, maxHp: 24 });
-  assert.equal(castSpell(game, legends[3].spell), 'hit');
-  assert.equal(trip.hp, 14);
+  for (const index of [1, 3]) {
+    const game = newGame();
+    game.story = null;
+    const trip = game.runs[0] = newTrip(0);
+    const boss = monsters.find((m) => m.country === 0 && m.base === 5);
+    Object.assign(trip, { step: 11, stage: 'battle', foe: boss.id, hp: 24, maxHp: 24 });
+    assert.equal(castSpell(game, legends[index].spell), 'hit');
+    assert.equal(trip.hp, 14);
+  }
 });
 
 test('equipping swaps the charge skill; switching changes it; unequipping restores the setting', () => {
@@ -94,8 +96,8 @@ test('equipping swaps the charge skill; switching changes it; unequipping restor
   assert.equal(game.drumSpell, 'rings');
 });
 
-test('only the first legend has a dedicated cinematic; the rest are marked pending', () => {
-  for (const legend of legends) assert.equal(hasCinematic(legend.spell), legend.index === 0, legend.name);
+test('sword and trident have dedicated cinematics; the other six remain pending', () => {
+  for (const legend of legends) assert.equal(hasCinematic(legend.spell), legend.index <= 1, legend.name);
   assert.ok(forestPlan.shots.length >= 10);
   assert.ok(forestPlan.duration > 12000);
 });
