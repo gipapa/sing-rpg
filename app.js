@@ -187,6 +187,7 @@ function renderBattle() {
   if (modeNotice && !suspended) $('battleHint').textContent += ' · ' + modeNotice;
 }
 function automaticAttack(reason) {
+  $('bluetoothStatus').hidden = true;
   drums.setMic(null);
   if (mic) {
     mic.track.onended = null;
@@ -230,6 +231,7 @@ function handleBattleEvent(event, now) {
   renderBattle();
 }
 function returnToCamp() {
+  $('bluetoothStatus').hidden = true;
   cinematic.cancel();
   hideCutIn();
   drums.stop();
@@ -265,12 +267,15 @@ modeDialog.addEventListener('cancel', () => modeCountdown.cancel());
 modeDialog.addEventListener('close', () => modeCountdown.cancel());
 $('singMode').onclick = () => startBattle(true);
 $('qualityMode').onclick = () => startBattle(false);
+$('bluetoothMode').onclick = () => startBattle(true, true);
 
-async function startBattle(useMicrophone) {
+async function startBattle(useMicrophone, bluetoothTest = false) {
   if (!modeDialog.open || pending || running) return;
   const attempt = ++startAttempt;
   closeMode();
   modeNotice = '';
+  $('bluetoothStatus').hidden = true;
+  $('bluetoothStatus').textContent = '';
   micPaused = 0;
   pending = true;
   $('action').disabled = true;
@@ -281,8 +286,9 @@ async function startBattle(useMicrophone) {
     let input = null;
     if (useMicrophone) {
       try {
-        input = await listen(data);
-      } catch {
+        input = await listen(data, { bluetoothTest });
+      } catch (error) {
+        if (bluetoothTest) throw error;
         modeNotice = '麥克風未能啟用，已切換自動攻擊';
       }
     }
@@ -291,6 +297,11 @@ async function startBattle(useMicrophone) {
       return;
     }
     mic = input;
+    if (bluetoothTest) {
+      $('bluetoothStatus').textContent = '藍牙音響測試 · 瀏覽器回報收音：' + (mic.track.label || '內建麥克風')
+        + ' · 歌聲直出（額外延遲 0 ms）。請在控制中心確認輸出為車機；網頁無法確認藍牙輸出，藍牙仍可能延遲。';
+      $('bluetoothStatus').hidden = false;
+    }
     data.runs[data.country] ??= newTrip(data.country);
     persist();
     running = true;

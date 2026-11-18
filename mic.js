@@ -18,27 +18,59 @@ export function connectEcho(context, source, game) {
 
 // Request the communication session used by WebKit's video-chat audio mode.
 // The OS still chooses the physical output route.
-export function microphoneSession(host = navigator) {
+export function microphoneSession(host = navigator, type = 'play-and-record') {
   const session = host.audioSession;
   if (!session) return () => {};
   const previous = session.type;
   try {
-    session.type = 'play-and-record';
+    session.type = type;
   } catch {
     return () => {};
   }
   return () => {
     try {
-      if (session.type === 'play-and-record') session.type = previous;
+      if (session.type === type) session.type = previous;
     } catch { /* Some browsers expose a read-only session. */ }
   };
 }
 
+// Device labels are exposed only after permission is granted. Never fall back to
+// an external/default microphone in this experiment if the built-in is unknown.
+export async function phoneMicrophone(host = navigator) {
+  const devices = host.mediaDevices;
+  const audio = { echoCancellation: false, autoGainControl: false, noiseSuppression: false };
+  const unavailable = () => Error('無法確認手機內建麥克風，藍牙音響測試未啟動。請用 iPhone 的 Safari 重試。');
+  if (!devices?.enumerateDevices || devices.getSupportedConstraints?.().deviceId === false) throw unavailable();
+  let stream;
+  try {
+    let inputs = await devices.enumerateDevices();
+    const findPhone = () => inputs.find(device => device.kind === 'audioinput' && device.deviceId
+      && !['default', 'communications'].includes(device.deviceId)
+      && /\biPhone\b|\bbuilt[ -]?in\b|\binternal\b|內建|内建|內置|内置/i.test(device.label));
+    let phone = findPhone();
+    if (!phone) {
+      stream = await devices.getUserMedia({ audio });
+      inputs = await devices.enumerateDevices();
+      phone = findPhone();
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    if (!phone) throw unavailable();
+    stream = await devices.getUserMedia({ audio: { ...audio, deviceId: { exact: phone.deviceId } } });
+    const track = stream.getAudioTracks()[0];
+    if (!track || track.getSettings().deviceId !== phone.deviceId) throw unavailable();
+    return stream;
+  } catch (error) {
+    stream?.getTracks().forEach(track => track.stop());
+    throw error;
+  }
+}
+
 // Playback stays in Apple's player. Microphone processing stays on the device.
-export async function listen(game = {}) {
+export async function listen(game = {}, { bluetoothTest = false } = {}) {
   if(!navigator.mediaDevices?.getUserMedia) throw Error('這個瀏覽器沒有提供麥克風，請用 Safari 或 Chrome 開啟。');
   const Audio = window.AudioContext || window.webkitAudioContext;
-  const context = new Audio();
+  const context = bluetoothTest ? new Audio({ latencyHint: 'interactive' }) : new Audio();
   let stream;
   let restoreSession = () => {};
   function close(){
@@ -47,13 +79,15 @@ export async function listen(game = {}) {
     restoreSession();
   }
   try {
-    restoreSession = microphoneSession();
+    // "playback" is incompatible with microphone capture in WebKit. Let iOS
+    // choose a compatible session while requesting the built-in input explicitly.
+    restoreSession = microphoneSession(navigator, bluetoothTest ? 'auto' : 'play-and-record');
     await context.resume();
-    stream=await navigator.mediaDevices.getUserMedia({
+    stream=bluetoothTest ? await phoneMicrophone() : await navigator.mediaDevices.getUserMedia({
       audio:{echoCancellation:true, autoGainControl:false, noiseSuppression:false}
     });
     const source=context.createMediaStreamSource(stream);
-    connectEcho(context, source, game);
+    connectEcho(context, source, bluetoothTest ? { echoEnabled: true, echoDelay: 0 } : game);
     const filter=context.createBiquadFilter();
     filter.type='bandpass';filter.frequency.value=750;filter.Q.value=.48;
     const analyser=context.createAnalyser();

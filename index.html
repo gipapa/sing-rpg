@@ -207,6 +207,7 @@
         <div class="readout">
           <div><small>遭遇</small><b id="enemy">等待出發</b></div>
           <div id="battleHint" class="battle-only"></div>
+          <p id="bluetoothStatus" class="battle-only" role="status" hidden></p>
         </div>
       </section>
       <section class="panel music" id="musicPanel" aria-label="Apple Music 播放控制">
@@ -337,6 +338,10 @@
       <button type="button" id="qualityMode" autofocus>
         <strong>高音質模式</strong>
         <span>角色自動戰鬥，可輕點戰場打鼓集氣放招。</span>
+      </button>
+      <button type="button" id="bluetoothMode">
+        <strong>藍牙音響測試</strong>
+        <span>先連接藍牙音響並調低音量。嘗試用手機麥克風收音、音響播放歌聲，不另加延遲。輸出由 iOS 決定，藍牙仍可能延遲。</span>
       </button>
       <button type="button" id="cancelMode">取消</button>
     </dialog>

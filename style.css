@@ -898,11 +898,25 @@ body.on-quest {
   font-weight: 400;
   margin-top: 3px;
 }
-#qualityMode {
+#qualityMode,
+#bluetoothMode {
   margin-top: 10px;
   background: #263444;
   color: #f6f1e4;
   border: 1px solid var(--edge);
+}
+#bluetoothStatus {
+  flex-basis: 100%;
+  order: 2;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+.on-quest .readout:has(#bluetoothStatus:not([hidden])) {
+  flex-wrap: wrap;
+  gap: 6px 12px;
 }
 #modeDialog #cancelMode {
   margin-top: 8px;
