@@ -65,13 +65,13 @@ test('only sovereign victories can drop a legend, alongside the regular reward',
 });
 
 test('a legendary skill deals exactly 10 in one settlement', () => {
-  for (const index of legends.map(legend => legend.index)) {
+  for (const legend of legends) {
     const game = newGame();
     game.story = null;
     const trip = game.runs[0] = newTrip(0);
     const boss = monsters.find((m) => m.country === 0 && m.base === 5);
     Object.assign(trip, { step: 11, stage: 'battle', foe: boss.id, hp: 24, maxHp: 24 });
-    assert.equal(castSpell(game, legends[index].spell), 'hit');
+    assert.equal(castSpell(game, legend.spell), 'hit');
     assert.equal(trip.hp, 14);
   }
 });
@@ -96,8 +96,8 @@ test('equipping swaps the charge skill; switching changes it; unequipping restor
   assert.equal(game.drumSpell, 'rings');
 });
 
-test('legendary cinematic availability matches the finished catalogue entries', () => {
-  for (const legend of legends) assert.equal(hasCinematic(legend.spell), legend.index <= 6, legend.name);
+test('all eight legendary skills are available in the cinematic catalogue', () => {
+  for (const legend of legends) assert.equal(hasCinematic(legend.spell), true, legend.name);
   assert.ok(forestPlan.shots.length >= 10);
   assert.ok(forestPlan.duration > 12000);
 });
