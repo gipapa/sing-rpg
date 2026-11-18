@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { tidePlan } from '../spell-tide.js';
+import { forgePlan } from '../spell-forge.js';
 import { legends } from '../legends.js';
 import { monsters, realms } from '../catalog.js';
 
 // Exercise the real scene and dialog player, including their exit/clock contract.
-test('trident player: full scene, preview, reduced motion, hidden pause and all exits', async () => {
+async function verifyPlayer(legend, plan) {
   const keys = ['document', 'requestAnimationFrame', 'cancelAnimationFrame', 'matchMedia'];
   const descriptors = keys.map(key => Object.getOwnPropertyDescriptor(globalThis, key));
   function context() {
@@ -38,9 +39,10 @@ test('trident player: full scene, preview, reduced motion, hidden pause and all 
   globalThis.matchMedia = () => ({ get matches() { return reduced; } });
   try {
     const { spellCinematic } = await import('../spell-cinematic.js');
-    const legend = legends[1], style = { spell: legend.spell, color: legend.color };
-    const scene = { country: 1, area: { land: 3, element: realms[1].sub[0] }, gear: [-1, -1, legend.id],
-      foe: monsters.find(m => m.country === 1 && m.base === 3) };
+    const style = { spell: legend.spell, color: legend.color };
+    const { country } = legend;
+    const scene = { country, area: { land: 3, element: realms[country].sub[0] }, gear: [-1, -1, legend.id],
+      foe: monsters.find(m => m.country === country && m.base === 3) };
     const captions = new Set(), handlers = {};
     const nodes = { canvas: canvas(960, 480), '#spellProgress': { style: {} }, '#skipSpell': {}, '#spellTitle': {}, '#spellCaster': {},
       '#spellShot': { set textContent(v) { captions.add(v); } } };
@@ -64,10 +66,10 @@ test('trident player: full scene, preview, reduced motion, hidden pause and all 
       for (let i = 0; i < 30; i++) tick();
       assert.equal(nodes['#spellProgress'].style.width, progress, 'hidden tab pauses');
       document.hidden = false;
-      for (let i = 0; i < tidePlan.duration / 20 + 2; i++) tick();
+      for (let i = 0; i < plan.duration / 20 + 2; i++) tick();
       assert.equal(await result, true);
       assert.equal(dialog.open, false);
-      assert.equal(captions.size, tidePlan.shots.length);
+      assert.equal(captions.size, plan.shots.length);
       assert.equal(queue.size, 0);
       nodes['#skipSpell'].onclick(); handlers.close(); player.cancel();
       assert.equal(settled, 1, 'completed playback resolves once');
@@ -88,4 +90,9 @@ test('trident player: full scene, preview, reduced motion, hidden pause and all 
   } finally {
     keys.forEach((key, i) => descriptors[i] ? Object.defineProperty(globalThis, key, descriptors[i]) : delete globalThis[key]);
   }
-});
+}
+
+for (const [legend, plan] of [[legends[1], tidePlan], [legends[2], forgePlan]]) {
+  test(legend.spell.name + ' player: full scene, preview, reduced motion, hidden pause and all exits',
+    () => verifyPlayer(legend, plan));
+}

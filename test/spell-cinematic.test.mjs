@@ -5,6 +5,7 @@ import { starsPlan } from '../spell-stars.js';
 import { ringsPlan } from '../spell-rings.js';
 import { petalsPlan } from '../spell-petals.js';
 import { forestPlan } from '../spell-forest.js';
+import { forgePlan } from '../spell-forge.js';
 import { tidePlan } from '../spell-tide.js';
 import { spellPlans } from '../spell-plans.js';
 import { drumSpells } from '../drum-spells.js';
@@ -209,4 +210,17 @@ test('滄海王令 shot endpoints frame their subjects inside the rotated viewpo
       assert.ok(sy > 24 && sy < 216, 'preview foe stays in close-up at ' + t);
     }
   }
+});
+
+test('熔心天墜 holds before the single impact, then knocks the foe back on the slowed clock', () => {
+  const { impact, shots, warp, pose, shake } = forgePlan;
+  const hold = shots.find(shot => shot[1].startsWith('懸息'))[0];
+  const actor = (t, reduced) => pose(t, warp(t), reduced);
+  assert.deepEqual(actor(hold), actor(impact - 1));
+  assert.equal(shake(hold + 120), 0);
+  assert.ok(warp(impact) - warp(hold) < 10);
+  assert.ok(Math.abs(warp(impact + 240) - warp(impact) - 28.8) < .001);
+  assert.equal(warp(impact + 241) - warp(impact + 240), 1);
+  const normal = actor(impact + 850).foe.dx, reduced = actor(impact + 850, true).foe.dx;
+  assert.ok(actor(impact).foe.dx < reduced && reduced < normal);
 });

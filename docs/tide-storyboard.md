@@ -36,7 +36,7 @@ Reduced motion：全程固定 `[240,126,1.1,0]`，關閉速度線、whip、閃�
 | `spell-tide.js` | 獨立分鏡、潮壁與海冠、三鋒巨戟、角色動作、停格與連續時間映射、減少動態效果版本 |
 | `spell-plans.js` | 註冊 `legend-1`，使戰鬥及圖鑑使用正式演出 |
 | `test/spell-cinematic.test.mjs` | 新招逐幀嚴格 Canvas 檢查、節奏與動作、時鐘連續性、起訖及升鏡中段取景回歸 |
-| `test/spell-tide-player.test.mjs` | 真實播放器與場景整合：有／無敵人、一般／減少動態效果、隱藏暫停、完成與各種退出、替換預覽 |
+| `test/spell-legend-player.test.mjs` | 真實播放器與場景整合：有／無敵人、一般／減少動態效果、隱藏暫停、完成與各種退出、替換預覽 |
 | `test/legends.test.mjs` | 完成狀態與三叉戟單次 10 傷害回歸 |
 | `README.md` | 更新完成招式、演出節奏及預覽說明 |
 | `skills/advanced-move-animation/` | 新增視覺診斷參考：材質與明暗、主體輪廓、變形過場、疊加過曝；明確區分結構測試、近似預覽與真實播放器驗證 |
