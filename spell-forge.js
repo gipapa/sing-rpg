@@ -1,4 +1,4 @@
-import { FOE, span, eases, rand, glow, spark } from './spell-fx.js';
+import { FOE, span, eases, rand, glow, spark, polygon, oval } from './spell-fx.js';
 
 const TAP = 1450, RIVER = 2100, CAST = 4550, LIFT = 6200, COMMAND = 7600;
 const RELEASE = 8850, DROP = 9450, HOLD = 10080, HIT = 10450, END = 14000;
@@ -28,20 +28,6 @@ function pose(t, w, reduced) {
       dy: -(reduced ? 6 : 26) * Math.sin(Math.PI * knock),
       tilt: -.13 * fear + recoil * (.56 - .32 * smooth(w, contactTime + 730, contactTime + 1600)) }
   };
-}
-
-function polygon(c, color, points) {
-  c.fillStyle = color;
-  c.beginPath();
-  for (let i = 0; i < points.length; i += 2) {
-    if (i === 0) c.moveTo(points[i], points[i + 1]);
-    else c.lineTo(points[i], points[i + 1]);
-  }
-  c.closePath(); c.fill();
-}
-
-function oval(c, x, y, rx, ry, color) {
-  c.fillStyle = color; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); c.fill();
 }
 
 // The same split diamond is engraved on the seal, the hanging die and the ground.

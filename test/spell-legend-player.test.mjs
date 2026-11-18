@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tidePlan } from '../spell-tide.js';
-import { forgePlan } from '../spell-forge.js';
+import { spellPlans } from '../spell-plans.js';
 import { legends } from '../legends.js';
 import { monsters, realms } from '../catalog.js';
 
@@ -92,7 +91,8 @@ async function verifyPlayer(legend, plan) {
   }
 }
 
-for (const [legend, plan] of [[legends[1], tidePlan], [legends[2], forgePlan]]) {
+for (const legend of legends.filter(legend => spellPlans[legend.spell.id])) {
+  const plan = spellPlans[legend.spell.id];
   test(legend.spell.name + ' player: full scene, preview, reduced motion, hidden pause and all exits',
     () => verifyPlayer(legend, plan));
 }

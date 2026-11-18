@@ -79,3 +79,52 @@ export function cameraAt(plan, t, reduced) {
   cam[1] += (Math.cos(t * .077) + Math.sin(t * .19) * .5) * shake / cam[2];
   return { shot, cam, whip };
 }
+
+export function polygon(c, color, points) {
+  c.fillStyle = color;
+  c.beginPath();
+  for (let i = 0; i < points.length; i += 2) {
+    if (i === 0) c.moveTo(points[i], points[i + 1]);
+    else c.lineTo(points[i], points[i + 1]);
+  }
+  c.closePath(); c.fill();
+}
+
+export function oval(c, x, y, rx, ry, color) {
+  c.fillStyle = color; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); c.fill();
+}
+
+// Shared drawing and timing primitives for the legendary plans. Positions are world pixels.
+export const smooth = (t, a, b) => eases.smooth(span(t, a, b));
+export function stroke(c, color, width, points) {
+  c.strokeStyle = color; c.lineWidth = width;
+  c.beginPath(); c.moveTo(points[0], points[1]);
+  for (let i = 2; i < points.length; i += 2) c.lineTo(points[i], points[i + 1]);
+  c.stroke();
+}
+export function skyWash(c, top, horizon, alpha) {
+  c.save(); c.globalAlpha = alpha;
+  const sky = c.createLinearGradient(0, -65, 0, 185);
+  sky.addColorStop(0, top); sky.addColorStop(1, horizon);
+  c.fillStyle = sky; c.fillRect(-1000, -1000, 2400, 2000); c.restore();
+}
+
+// The clock holds for the last fraction before contact and resumes continuously after hit-stop.
+export function heldClock(hold, hit, stop = 240) {
+  return t => Math.min(t, hold) + .025 * Math.max(0, Math.min(hit, t) - hold)
+    + .12 * Math.max(0, Math.min(t - hit, stop)) + Math.max(0, t - hit - stop);
+}
+
+export function heroKeys(keys, t) {
+  const i = keys.findLastIndex(key => key[0] <= t);
+  const a = keys[i], b = keys[i + 1] ?? a;
+  const k = a === b ? 0 : smooth(t, a[0], b[0]);
+  return { dx: a[1] + (b[1] - a[1]) * k, dy: a[2] + (b[2] - a[2]) * k,
+    angle: a[3] + (b[3] - a[3]) * k };
+}
+
+export function recoil(age, fear, distance, height, reduced) {
+  const k = span(age, 0, 800), force = reduced ? .34 : 1;
+  return { dx: 4 * fear + force * distance * (eases.out(k) - .25 * smooth(age, 820, 1600)),
+    dy: -force * height * Math.sin(k * Math.PI), tilt: -.12 * fear + force * .45 * eases.out(k) };
+}

@@ -65,7 +65,7 @@ test('only sovereign victories can drop a legend, alongside the regular reward',
 });
 
 test('a legendary skill deals exactly 10 in one settlement', () => {
-  for (const index of [1, 2, 3]) {
+  for (const index of legends.map(legend => legend.index)) {
     const game = newGame();
     game.story = null;
     const trip = game.runs[0] = newTrip(0);
@@ -96,8 +96,8 @@ test('equipping swaps the charge skill; switching changes it; unequipping restor
   assert.equal(game.drumSpell, 'rings');
 });
 
-test('sword, trident and hammer have dedicated cinematics; the other five remain pending', () => {
-  for (const legend of legends) assert.equal(hasCinematic(legend.spell), legend.index <= 2, legend.name);
+test('legendary cinematic availability matches the finished catalogue entries', () => {
+  for (const legend of legends) assert.equal(hasCinematic(legend.spell), legend.index <= 3, legend.name);
   assert.ok(forestPlan.shots.length >= 10);
   assert.ok(forestPlan.duration > 12000);
 });
