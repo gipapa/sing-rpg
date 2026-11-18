@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { phoneMicrophone, microphoneSession, listen } from '../mic.js';
+import { phoneMicrophone, microphoneSession, microphoneSettings, listMicrophones, soundDetector, listen } from '../mic.js';
 
 const phone = { kind: 'audioinput', deviceId: 'phone', label: 'iPhone Microphone' };
 const car = { kind: 'audioinput', deviceId: 'car', label: 'Car Hands-Free' };
@@ -39,10 +39,10 @@ test('permission capture is stopped before opening the explicitly selected phone
   assert.equal(requests, 2);
 });
 
-test('unidentified inputs never become the test microphone and permission capture is released', async () => {
+test('unidentified inputs never become the phone microphone and permission capture is released', async () => {
   const bootstrap = capture(car);
   await assert.rejects(phoneMicrophone({ mediaDevices: {
-    enumerateDevices: async () => [car], getUserMedia: async () => bootstrap
+    enumerateDevices: async () => [{ kind: 'audioinput', label: '', deviceId: '' }], getUserMedia: async () => bootstrap
   } }), /無法確認手機內建麥克風/);
   assert.equal(bootstrap.track.stopped, true);
 });
@@ -51,7 +51,7 @@ test('browser selecting a different microphone despite the constraint fails and 
   const wrong = capture(car);
   await assert.rejects(phoneMicrophone({ mediaDevices: {
     enumerateDevices: async () => [phone, car], getUserMedia: async () => wrong
-  } }), /無法確認手機內建麥克風/);
+  } }), /未使用指定的麥克風/);
   assert.equal(wrong.track.stopped, true);
 });
 
@@ -88,10 +88,61 @@ test('automatic session is restored without overriding a later session change', 
   assert.equal(host.audioSession.type, 'play-and-record');
 });
 
-test('test mode monitors the selected phone at zero added delay without changing camp settings', async () => {
+test('microphone settings default to automatic combat and validate saved options', () => {
+  assert.deepEqual(microphoneSettings(), { source: 'none', session: 'play-and-record', latency: 'interactive',
+    echoCancellation: true, noiseSuppression: false, autoGainControl: false, threshold: 2, cooldown: 1000 });
+  assert.deepEqual(microphoneSettings({ micSource: 'invalid', micSessionType: 'playback', micLatencyHint: -1,
+    micEchoCancellation: 'false', micNoiseSuppression: 'true', micAutoGainControl: 1 }), microphoneSettings());
+  assert.equal(microphoneSettings({ micSource: 'device:' }).source, 'none');
+  assert.equal(microphoneSettings({ micSource: 'default' }).source, 'default');
+  assert.equal(microphoneSettings({ micThreshold: NaN, micCooldown: Infinity }).cooldown, 1000);
+  assert.equal(microphoneSettings({ micThreshold: NaN }).threshold, 2);
+  assert.equal(microphoneSettings({ micThreshold: 0 }).threshold, .1);
+  assert.equal(microphoneSettings({ micThreshold: 99 }).threshold, 20);
+  assert.equal(microphoneSettings({ micCooldown: 0 }).cooldown, 300);
+  assert.equal(microphoneSettings({ micCooldown: 99999 }).cooldown, 3000);
+});
+
+test('no microphone returns without touching capture or audio APIs', async () => {
+  assert.equal(await listen({ micSource: 'none', echoEnabled: true }), null);
+  assert.equal(await listen(), null);
+});
+
+test('volume detection ignores quiet audio and isolated clicks, then accepts sustained sound', () => {
+  const detector = soundDetector(.02);
+  const quiet = new Float32Array(512).fill(.01);
+  const loud = Float32Array.from({ length: 512 }, (_, i) => i % 2 ? -.08 : .04);
+  for (let i = 0; i < 30; i++) assert.equal(detector.sample(quiet, .1), false);
+  assert.equal(detector.sample(loud, .1), false, 'brief click');
+  assert.equal(detector.sample(quiet, .1), false, 'silence clears the hold');
+  assert.equal(detector.sample(loud, .1), false);
+  assert.equal(detector.sample(loud, .1), true);
+  assert.equal(detector.sample(loud, .1), true, 'sustained audio stays eligible');
+  assert.equal(detector.sample(quiet, .1), false);
+  detector.sample(loud, .2);
+  detector.reset();
+  assert.equal(detector.sample(loud, .1), false, 'resume requires a fresh hold');
+  assert.equal(detector.sample(new Float32Array(), .2), false);
+});
+
+test('volume threshold can be tuned without requiring periodic or pitched sound', () => {
+  const samples = new Float32Array(512).fill(.03);
+  assert.equal(soundDetector(.02).sample(samples, .2), true);
+  assert.equal(soundDetector(.04).sample(samples, .2), false);
+});
+
+test('listing named inputs needs no capture and excludes aliases and outputs', async () => {
+  const inputs = await listMicrophones({ mediaDevices: {
+    enumerateDevices: async () => [phone, car, { ...phone, deviceId: 'default' }, { kind: 'audiooutput', deviceId: 'speaker' }],
+    getUserMedia: async () => assert.fail('permission already granted')
+  } });
+  assert.deepEqual(inputs, [phone, car]);
+});
+
+test('selected microphone and independent audio settings reach capture, playback and cleanup', async () => {
   const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-  const connections = [], contexts = [], streams = [];
+  const connections = [], contexts = [], streams = [], requests = [];
   class Audio {
     constructor(options) { this.options = options; this.state = 'suspended'; this.destination = {}; contexts.push(this); }
     async resume() { this.state = 'running'; }
@@ -102,39 +153,78 @@ test('test mode monitors the selected phone at zero added delay without changing
     }
     createDelay() { return { delayTime: {}, connect: node => connections.push(node) }; }
     createBiquadFilter() { return { frequency: {}, Q: {}, connect() {} }; }
-    createAnalyser() { return {}; }
+    createAnalyser() {
+      this.reads = 0;
+      this.analyser = { getFloatTimeDomainData: samples => { this.reads++; samples.fill(.04); } };
+      return this.analyser;
+    }
   }
   const host = { audioSession: { type: 'ambient' }, mediaDevices: {
     enumerateDevices: async () => [phone, car],
-    getUserMedia: async () => {
-      assert.equal(host.audioSession.type, contexts.at(-1).options ? 'auto' : 'play-and-record');
-      const stream = capture(phone); streams.push(stream); return stream;
+    getUserMedia: async constraints => {
+      requests.push({ constraints, session: host.audioSession.type });
+      const stream = capture(constraints.audio.deviceId?.exact === 'car' ? car : phone);
+      streams.push(stream); return stream;
     }
   } };
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: host });
   Object.defineProperty(globalThis, 'window', { configurable: true, value: { AudioContext: Audio } });
   try {
-    const game = { echoEnabled: false, echoDelay: 700 };
-    const input = await listen(game, { bluetoothTest: true });
-    assert.deepEqual(contexts[0].options, { latencyHint: 'interactive' });
+    const game = { micSource: 'phone', micSessionType: 'auto', micLatencyHint: 'balanced',
+      micEchoCancellation: false, micNoiseSuppression: true, micAutoGainControl: true,
+      echoEnabled: true, echoDelay: 350, micThreshold: 3, micCooldown: 1500 };
+    const saved = structuredClone(game);
+    const input = await listen(game);
+    assert.deepEqual(contexts[0].options, { latencyHint: 'balanced' });
+    assert.deepEqual(requests[0], { session: 'auto', constraints: { audio: {
+      echoCancellation: false, autoGainControl: true, noiseSuppression: true, deviceId: { exact: 'phone' }
+    } } });
     assert.equal(contexts[0].stream, streams[0]);
-    assert.equal(connections[0].delayTime.value, 0);
+    assert.equal(connections[0].delayTime.value, .35);
     assert.equal(connections[1], contexts[0].destination);
-    assert.deepEqual(game, { echoEnabled: false, echoDelay: 700 });
+    assert.deepEqual(game, saved);
+    assert.equal(input.cooldown, 1.5);
+    assert.equal(contexts[0].analyser.fftSize, 512);
+    assert.equal(input.sample(.1), false);
+    assert.equal(input.sample(.1), true);
+    input.track.muted = true;
+    assert.equal(input.sample(.1), false);
+    assert.equal(contexts[0].reads, 2, 'muted microphone skips sample acquisition');
+    input.track.muted = false;
+    assert.equal(input.sample(.1), false);
+    contexts[0].state = 'suspended';
+    assert.equal(input.sample(.1), false);
+    assert.equal(contexts[0].reads, 3, 'suspended context skips sample acquisition');
+    contexts[0].state = 'running';
+    input.track.readyState = 'ended';
+    assert.equal(input.sample(.1), false);
+    assert.equal(contexts[0].reads, 3, 'ended track skips sample acquisition');
     input.close();
     assert.equal(streams[0].track.stopped, true);
     assert.equal(contexts[0].state, 'closed');
     assert.equal(host.audioSession.type, 'ambient');
     connections.length = 0;
-    const normal = await listen(game);
-    assert.equal(contexts[1].options, undefined);
+    const normal = await listen({ micSource: 'default' });
+    assert.deepEqual(contexts[1].options, { latencyHint: 'interactive' });
+    assert.deepEqual(requests[1], { session: 'play-and-record', constraints: { audio: {
+      echoCancellation: true, autoGainControl: false, noiseSuppression: false
+    } } });
     assert.equal(connections.length, 1, 'normal mode with echo off connects only its analyser branch');
     normal.close();
     assert.equal(host.audioSession.type, 'ambient');
-    host.mediaDevices.enumerateDevices = async () => [car];
-    await assert.rejects(listen(game, { bluetoothTest: true }), /無法確認手機內建麥克風/);
-    assert.equal(contexts[2].state, 'closed');
+    connections.length = 0;
+    const external = await listen({ micSource: 'device:car', micLatencyHint: 'playback', echoEnabled: true, echoDelay: 0 });
+    assert.equal(external.track.label, car.label);
+    assert.equal(requests[2].constraints.audio.deviceId.exact, 'car');
+    assert.deepEqual(contexts[2].options, { latencyHint: 'playback' });
+    assert.equal(requests[2].session, 'play-and-record', 'playback latency preference does not set playback-only session');
+    assert.equal(connections[0].delayTime.value, 0);
+    external.close();
     assert.equal(streams[2].track.stopped, true);
+    host.mediaDevices.enumerateDevices = async () => [car];
+    await assert.rejects(listen(game), /無法確認手機內建麥克風/);
+    assert.equal(contexts[3].state, 'closed');
+    assert.equal(requests.length, 3, 'missing phone does not acquire a default input');
     assert.equal(host.audioSession.type, 'ambient');
   } finally {
     if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);

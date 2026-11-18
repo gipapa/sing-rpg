@@ -18,7 +18,7 @@ import { portrait, journalIcon, storyScene } from './scene.js';
 import { countdown } from './countdown.js';
 import { drumSpells, drumColors, drumStyle } from './drum-spells.js';
 import { drumVolume } from './drums.js';
-import { echoSettings } from './mic.js';
+import { echoSettings, microphoneSettings, listMicrophones, microphoneSession } from './mic.js';
 import { legends, LEGEND_DROP_RATE, LEGEND_DAMAGE, isLegendId, equippedLegend, equipLegend, unequipLegend, legendIcon } from './legends.js';
 import { hasCinematic } from './spell-plans.js';
 
@@ -75,6 +75,65 @@ export function camp(game, persist, previewSpell = () => {}) {
     renderHeroPortrait();
     $('portraitStatus').textContent = '已改用角色外觀。';
   };
+  const input = microphoneSettings(game);
+  const source = $('micSource');
+  if (input.source.startsWith('device:')) {
+    source.add(new Option(game.micSourceLabel || '已選麥克風（可重新讀取清單）', input.source));
+  }
+  source.value = input.source;
+  source.onchange = () => {
+    game.micSource = source.value;
+    game.micSourceLabel = source.selectedOptions[0].textContent;
+    persist();
+  };
+  for (const [id, value] of [['micSessionType', input.session], ['micLatencyHint', input.latency]]) {
+    $(id).value = value;
+    $(id).onchange = () => { game[id] = $(id).value; persist(); };
+  }
+  for (const [id, value] of [['micEchoCancellation', input.echoCancellation],
+    ['micNoiseSuppression', input.noiseSuppression], ['micAutoGainControl', input.autoGainControl]]) {
+    $(id).checked = value;
+    $(id).onchange = () => { game[id] = $(id).checked; persist(); };
+  }
+  $('loadMicrophones').onclick = async () => {
+    $('loadMicrophones').disabled = true;
+    $('micDevicesStatus').textContent = '正在讀取麥克風，可能需要授權…';
+    const restore = microphoneSession(navigator, 'auto');
+    try {
+      const devices = await listMicrophones();
+      const selected = source.value;
+      // Keep a saved, disconnected input visible so refreshing never silently
+      // replaces the user's selection with the system default.
+      const savedLabel = source.selectedOptions[0].textContent;
+      source.replaceChildren(new Option('無麥克風（自動戰鬥）', 'none'),
+        new Option('系統預設麥克風', 'default'), new Option('手機／裝置內建麥克風', 'phone'));
+      for (const device of devices) {
+        source.add(new Option(device.label || '未命名麥克風', 'device:' + device.deviceId));
+      }
+      if (selected.startsWith('device:') && ![...source.options].some(option => option.value === selected)) {
+        source.add(new Option(savedLabel, selected));
+      }
+      source.value = selected;
+      $('micDevicesStatus').textContent = devices.length
+        ? '清單已更新，請選擇手機或車機麥克風。讀取完成後已停止暫時收音。'
+        : '瀏覽器沒有提供可指定的麥克風。可使用系統預設，或換瀏覽器重試。';
+    } catch (error) {
+      $('micDevicesStatus').textContent = error.name === 'NotAllowedError'
+        ? '麥克風權限未開啟，無法讀取清單。' : error.message;
+    } finally {
+      restore();
+      $('loadMicrophones').disabled = false;
+    }
+  };
+  for (const [id, value, format] of [
+    ['micThreshold', input.threshold, value => value + '%'],
+    ['micCooldown', input.cooldown, value => (value / 1000).toFixed(1) + ' 秒']
+  ]) {
+    $(id).value = value;
+    const show = () => { $(id + 'Value').value = format(Number($(id).value)); };
+    show();
+    $(id).oninput = () => { game[id] = Number($(id).value); show(); persist(); };
+  }
   const echo = echoSettings(game);
   $('echoEnabled').checked = echo.enabled;
   $('echoDelay').value = echo.delay;
@@ -177,6 +236,7 @@ export function camp(game, persist, previewSpell = () => {}) {
         : '苔冠王國通關後開放';
     $('action').disabled = !open;
     $('action').textContent = !open ? '尚未開放' : run ? '繼續戰鬥 →' : '開始戰鬥 →';
+    $('settingsAction').disabled = !available(game, game.country);
     $('landmarks').replaceChildren(
       ...realm.land.map((land, i) => {
         const li = document.createElement('li'),
@@ -576,9 +636,10 @@ export function camp(game, persist, previewSpell = () => {}) {
   openTab('map');
   story();
   return {
-    refresh() {
+    refresh(next = 'map') {
       preview = game.country;
-      openTab('map');
+      if (next !== 'map') renderMap();
+      openTab(next);
     },
     story,
     stopStory

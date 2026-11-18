@@ -1,10 +1,9 @@
 import {draw,portrait} from './scene.js';
 import {advance,newTrip,currentArea,castSpell} from './adventure.js';
-import {listen} from './mic.js';
+import {listen,microphoneSettings} from './mic.js';
 import {battleScreenLock} from './screen.js';
 import {realms,monsters,equipment,companions,newGame,available,travelingParty} from './catalog.js';
 import {camp} from './camp.js';
-import {countdown} from './countdown.js';
 import {battleDrums} from './drums.js';
 import {songbook} from './songbook.js';
 import {spellCinematic,hasCinematic} from './spell-cinematic.js';
@@ -116,12 +115,11 @@ let mic = null,
   lastTick = 0,
   lastSaved = 0,
   micPaused = 0,
-  modeNotice = '',
+  inputNotice = '',
   startAttempt = 0;
 let party = travelingParty(data);
 const keepScreenOn = battleScreenLock($('screenToggle'), $('screenStatus'));
-const modeDialog = $('modeDialog');
-const modeCountdown = countdown($('modeCountdown'));
+let battleEntry = $('action');
 
 function battleMenu(open) {
   $('battleTools').hidden = !open;
@@ -155,7 +153,7 @@ function focusBattle(on) {
   for (const el of document.querySelectorAll('body > header, main > :not(.field)')) el.inert = on;
   keepScreenOn(on);
   if (on) $('battleMenuToggle').focus({ preventScroll: true });
-  else $('action').focus({ preventScroll: true });
+  else battleEntry.focus({ preventScroll: true });
 }
 function renderBattle() {
   const trip = data.runs[data.country],
@@ -180,14 +178,14 @@ function renderBattle() {
   $('battleHint').textContent = suspended
     ? '收音暫停，' + Math.max(1, Math.ceil(10 - micPaused)) + ' 秒後切換自動攻擊。'
     : battle
-      ? (mic ? (voice ? '歌聲集氣' : '等待跟唱') : '自動攻擊') + ' · ' + trip.message
+      ? (mic ? (voice ? '聽音攻擊' : '等待聲音') : '自動攻擊') + ' · ' + trip.message
       : trip.stage === 'loot'
         ? '戰利品已收入全隊收藏，稍後自動' + (trip.step === 11 ? '從本國第一關重新遠征。' : '前往下一關。')
         : '與夥伴一起前進中。';
-  if (modeNotice && !suspended) $('battleHint').textContent += ' · ' + modeNotice;
+  if (inputNotice && !suspended) $('battleHint').textContent += ' · ' + inputNotice;
 }
 function automaticAttack(reason) {
-  $('bluetoothStatus').hidden = true;
+  $('micStatus').hidden = true;
   drums.setMic(null);
   if (mic) {
     mic.track.onended = null;
@@ -196,7 +194,7 @@ function automaticAttack(reason) {
   }
   voice = false;
   micPaused = 0;
-  modeNotice = reason;
+  inputNotice = reason;
 }
 function tick() {
   if (!running) return;
@@ -206,11 +204,11 @@ function tick() {
   if (data.story !== null) return;
   micPaused = mic && (mic.context.state !== 'running' || mic.track.muted) ? micPaused + dt : 0;
   if (micPaused >= 10) automaticAttack('收音暫停，已切換自動攻擊');
-  voice = mic?.sample(dt) ?? false;
   if (spellPlaying) return;
+  voice = mic?.sample(dt) ?? false;
   drums.sing(dt, voice);
   if (spellPlaying) return;
-  const event = advance(data, dt, !mic || voice);
+  const event = advance(data, dt, !mic || voice, mic?.cooldown ?? 0);
   handleBattleEvent(event, now);
 }
 function handleBattleEvent(event, now) {
@@ -231,7 +229,7 @@ function handleBattleEvent(event, now) {
   renderBattle();
 }
 function returnToCamp() {
-  $('bluetoothStatus').hidden = true;
+  $('micStatus').hidden = true;
   cinematic.cancel();
   hideCutIn();
   drums.stop();
@@ -246,63 +244,48 @@ function returnToCamp() {
   }
   voice = false;
   persist();
-  lobby.refresh();
+  lobby.refresh(battleEntry.id === 'settingsAction' ? 'settings' : 'map');
   focusBattle(false);
-  $('status').textContent = '進度已保存。可繼續本國遠征，或從地圖前往其他國家。';
+  departureStatus('進度已保存。可繼續本國遠征，或從地圖前往其他國家。');
   if (data.story !== null && !document.hidden) lobby.story();
 }
 $('returnCamp').onclick = returnToCamp;
-$('action').onclick = () => {
-  if (!pending && !running && !modeDialog.open && data.story === null && available(data, data.country)) {
-    modeDialog.showModal();
-    modeCountdown.start(10, (seconds) => seconds + ' 秒後以高音質模式自動出發', () => startBattle(false));
-  }
-};
-function closeMode() {
-  modeCountdown.cancel();
-  modeDialog.close();
+function departureStatus(message) {
+  $('status').textContent = message;
+  $('settingsBattleStatus').textContent = message;
 }
-$('cancelMode').onclick = closeMode;
-modeDialog.addEventListener('cancel', () => modeCountdown.cancel());
-modeDialog.addEventListener('close', () => modeCountdown.cancel());
-$('singMode').onclick = () => startBattle(true);
-$('qualityMode').onclick = () => startBattle(false);
-$('bluetoothMode').onclick = () => startBattle(true, true);
-
-async function startBattle(useMicrophone, bluetoothTest = false) {
-  if (!modeDialog.open || pending || running) return;
+async function startBattle(event) {
+  if (pending || running || data.story !== null || !available(data, data.country)) return;
+  if ($('loadMicrophones').disabled) {
+    departureStatus('請先完成麥克風清單讀取或關閉授權提示，再開始戰鬥。');
+    return;
+  }
+  battleEntry = event.currentTarget;
+  const useMicrophone = microphoneSettings(data).source !== 'none';
   const attempt = ++startAttempt;
-  closeMode();
-  modeNotice = '';
-  $('bluetoothStatus').hidden = true;
-  $('bluetoothStatus').textContent = '';
+  inputNotice = '';
+  $('micStatus').hidden = true;
+  $('micStatus').textContent = '';
   micPaused = 0;
   pending = true;
   $('action').disabled = true;
-  $('status').textContent = useMicrophone ? '正在開啟麥克風…' : '正在出發…';
+  $('settingsAction').disabled = true;
+  departureStatus(useMicrophone ? '正在開啟麥克風…' : '正在出發…');
   document.querySelector('main').inert = true;
   document.querySelector('header').inert = true;
   try {
-    let input = null;
-    if (useMicrophone) {
-      try {
-        input = await listen(data, { bluetoothTest });
-      } catch (error) {
-        if (bluetoothTest) throw error;
-        modeNotice = '麥克風未能啟用，已切換自動攻擊';
-      }
-    }
+    const input = await listen(data);
     if (attempt !== startAttempt) {
       input?.close();
       return;
     }
     mic = input;
-    if (bluetoothTest) {
-      $('bluetoothStatus').textContent = '藍牙音響測試 · 瀏覽器回報收音：' + (mic.track.label || '內建麥克風')
-        + ' · 歌聲直出（額外延遲 0 ms）。請在控制中心確認輸出為車機；網頁無法確認藍牙輸出，藍牙仍可能延遲。';
-      $('bluetoothStatus').hidden = false;
+    if (mic) {
+      $('micStatus').textContent = '瀏覽器回報收音：' + (mic.track.label || '未提供裝置名稱');
+      $('micStatus').hidden = false;
     }
     data.runs[data.country] ??= newTrip(data.country);
+    data.runs[data.country].soundCooldown = 0;
     persist();
     running = true;
     drums.start(mic);
@@ -318,12 +301,12 @@ async function startBattle(useMicrophone, bluetoothTest = false) {
   } catch (error) {
     if (attempt !== startAttempt) return;
     if (running) returnToCamp();
-    $('status').textContent =
+    departureStatus(
       error.name === 'NotAllowedError'
-        ? '麥克風權限尚未開啟。可使用高音質模式。'
+        ? '麥克風權限尚未開啟。請允許收音，或在設定選擇「無麥克風」自動戰鬥。'
         : error.name === 'NotFoundError'
-          ? '找不到麥克風。可接上麥克風或使用高音質模式。'
-          : error.message;
+          ? '找不到麥克風。請確認連線，或在設定選擇「無麥克風」自動戰鬥。'
+          : error.message);
   } finally {
     if (attempt === startAttempt) {
       pending = false;
@@ -331,10 +314,13 @@ async function startBattle(useMicrophone, bluetoothTest = false) {
         document.querySelector('main').inert = false;
         document.querySelector('header').inert = false;
         $('action').disabled = false;
+        $('settingsAction').disabled = false;
       }
     }
   }
 }
+$('action').onclick = startBattle;
+$('settingsAction').onclick = startBattle;
 const lessMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let lastPaint = -100;
 function animate(ms) {
@@ -358,7 +344,6 @@ function animate(ms) {
   frame = requestAnimationFrame(animate);
 }
 window.addEventListener('pagehide', () => {
-  closeMode();
   if (pending) {
     startAttempt++;
     pending = false;

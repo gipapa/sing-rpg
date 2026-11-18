@@ -49,7 +49,7 @@
             <div id="affinities"></div>
             <p id="realmInfo"></p>
             <div id="routeState"></div>
-            <button id="action" class="primary" aria-haspopup="dialog" aria-controls="modeDialog">
+            <button id="action" class="primary">
               開始戰鬥 →
             </button>
             <p>出發後自動接續戰鬥，打完國主會從本國第一關重新遠征。</p>
@@ -137,7 +137,7 @@
         </div>
         <div class="panel drum-settings">
           <h2>打鼓招式</h2>
-          <p>敲鼓每下、有效歌聲每累積一秒隨機集氣 1–5%，集滿自動放招。集氣持續到本次回營。</p>
+          <p>敲鼓每下、有效聲音每累積一秒隨機集氣 1–5%，集滿自動放招。集氣持續到本次回營。</p>
           <label for="drumSpell">招式</label>
           <select id="drumSpell"></select>
           <p id="legendSpellNote" class="legend-note" hidden></p>
@@ -149,12 +149,53 @@
             <output id="drumVolumeValue" for="drumVolume">85%</output>
           </div>
         </div>
+        <div class="panel drum-settings mic-settings">
+          <h2>麥克風與音訊</h2>
+          <p>無麥克風時自動戰鬥；選擇麥克風後依聲音判斷攻擊。設定會保存，在下次出發時生效。</p>
+          <label for="micSource">收音麥克風</label>
+          <select id="micSource">
+            <option value="none">無麥克風（自動戰鬥）</option>
+            <option value="default">系統預設麥克風</option>
+            <option value="phone">手機／裝置內建麥克風</option>
+          </select>
+          <button type="button" id="loadMicrophones">讀取麥克風清單</button>
+          <p id="micDevicesStatus" role="status">連接車機後讀取清單，可選擇瀏覽器提供的車機或其他麥克風。</p>
+          <div class="drum-volume">
+            <label for="micThreshold">觸發音量</label>
+            <input id="micThreshold" type="range" min="0.1" max="20" step="0.1" value="2" />
+            <output id="micThresholdValue" for="micThreshold">2%</output>
+          </div>
+          <p>聲音超過門檻並持續約 0.15 秒才算有效；門檻越高，越不容易被小聲音觸發。背景音樂也可能觸發。</p>
+          <div class="drum-volume">
+            <label for="micCooldown">攻擊冷卻</label>
+            <input id="micCooldown" type="range" min="300" max="3000" step="100" value="1000" />
+            <output id="micCooldownValue" for="micCooldown">1.0 秒</output>
+          </div>
+          <p>冷卻結束且仍有有效聲音才會再攻擊；安靜時不攻擊，冷卻仍會倒數。</p>
+          <label for="micSessionType">音訊模式</label>
+          <select id="micSessionType">
+            <option value="play-and-record">雙向收音與播放（原本設定）</option>
+            <option value="auto">自動（由瀏覽器決定）</option>
+          </select>
+          <label for="micLatencyHint">音訊處理延遲偏好</label>
+          <select id="micLatencyHint">
+            <option value="interactive">即時（低延遲，預設）</option>
+            <option value="balanced">平衡</option>
+            <option value="playback">播放優先（可接受較高延遲）</option>
+          </select>
+          <p>延遲偏好由瀏覽器盡量配合，無法消除藍牙傳輸延遲。</p>
+          <label><input id="micEchoCancellation" type="checkbox" checked /> 回音消除</label>
+          <p>減少喇叭聲被收回，可能影響歌聲音色。</p>
+          <label><input id="micNoiseSuppression" type="checkbox" /> 降噪</label>
+          <label><input id="micAutoGainControl" type="checkbox" /> 自動增益（自動調整收音音量）</label>
+          <p>瀏覽器可能不支援部分設定。播放裝置由 iOS／系統決定；使用藍牙車機時，請在控制中心確認輸出裝置。</p>
+        </div>
         <div class="panel drum-settings">
           <h2>回聲</h2>
           <label><input id="echoEnabled" type="checkbox" /> 播放麥克風回聲</label>
-          <p>跟唱模式收音時生效。建議戴耳機，避免喇叭聲被麥克風反覆收回。</p>
+          <p>選擇麥克風並開始戰鬥後生效。建議戴耳機，避免喇叭聲被麥克風反覆收回。</p>
           <div class="drum-volume">
-            <label for="echoDelay">延遲</label>
+            <label for="echoDelay">額外延遲</label>
             <input id="echoDelay" type="range" min="0" max="1000" step="10" value="200" />
             <output id="echoDelayValue" for="echoDelay">200 ms</output>
           </div>
@@ -164,6 +205,8 @@
           <label><input id="simpleAnimations" type="checkbox" /> 精簡動畫</label>
           <p>開啟後不彈出招式視窗、不播放招式特效與敲鼓漣漪，只直接顯示結算後的 cut-in，戰鬥持續進行。</p>
         </div>
+        <button type="button" id="settingsAction" class="primary">繼續戰鬥 →</button>
+        <p id="settingsBattleStatus" role="status"></p>
       </section>
       <section class="field" id="field" aria-labelledby="location">
         <div class="scene">
@@ -207,7 +250,7 @@
         <div class="readout">
           <div><small>遭遇</small><b id="enemy">等待出發</b></div>
           <div id="battleHint" class="battle-only"></div>
-          <p id="bluetoothStatus" class="battle-only" role="status" hidden></p>
+          <p id="micStatus" class="battle-only" role="status" hidden></p>
         </div>
       </section>
       <section class="panel music" id="musicPanel" aria-label="Apple Music 播放控制">
@@ -327,23 +370,6 @@
           <button id="skipStory">直接出發</button><button class="primary" id="nextStory">下一幕 →</button>
         </div>
       </div>
-    </dialog>
-    <dialog id="modeDialog" aria-labelledby="modeTitle">
-      <h2 id="modeTitle">這趟想怎麼玩？</h2>
-      <p id="modeCountdown" class="auto-countdown"></p>
-      <button type="button" id="singMode">
-        <strong>跟唱模式</strong>
-        <span>用歌聲出招，可使用麥克風回聲。輕點戰場打鼓集氣放招。連接車機時音樂可能轉為通話音質。</span>
-      </button>
-      <button type="button" id="qualityMode" autofocus>
-        <strong>高音質模式</strong>
-        <span>角色自動戰鬥，可輕點戰場打鼓集氣放招。</span>
-      </button>
-      <button type="button" id="bluetoothMode">
-        <strong>藍牙音響測試</strong>
-        <span>先連接藍牙音響並調低音量。嘗試用手機麥克風收音、音響播放歌聲，不另加延遲。輸出由 iOS 決定，藍牙仍可能延遲。</span>
-      </button>
-      <button type="button" id="cancelMode">取消</button>
     </dialog>
     <dialog id="spellDialog" aria-labelledby="spellTitle" aria-describedby="spellShot">
       <div class="spell-heading"><div><small id="spellCaster"></small><h2 id="spellTitle"></h2></div><span>招式演出</span></div>

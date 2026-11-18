@@ -21,6 +21,53 @@ function nextEvent(game, wanted) {
   assert.fail('timed out waiting for ' + wanted);
 }
 
+test('sound attacks trigger once per cooldown, count down in silence and never queue old sounds', () => {
+  const game = newGame();
+  game.story = null;
+  game.runs[0] = newTrip(0);
+  nextEvent(game, 'battle');
+  const trip = game.runs[0];
+  trip.hp = trip.maxHp = 1000;
+  assert.equal(advance(game, .1, false, 1), undefined);
+  assert.equal(trip.hits, 0, 'silence never attacks');
+  assert.equal(advance(game, .1, true, 1), 'hit');
+  for (let i = 0; i < 9; i++) assert.equal(advance(game, .1, true, 1), undefined);
+  assert.equal(trip.hits, 1, 'continuous sound cannot bypass cooldown');
+  assert.equal(advance(game, .1, true, 1), 'hit');
+  assert.equal(trip.hits, 2);
+  for (let i = 0; i < 20; i++) advance(game, .1, false, 1);
+  assert.equal(trip.hits, 2, 'expired cooldown does not attack in silence');
+  assert.equal(advance(game, .1, true, 1), 'hit', 'silence allowed cooldown to expire');
+  advance(game, .1, true, 1);
+  advance(game, .25, false, 1);
+  advance(game, .25, false, 1);
+  advance(game, .25, false, 1);
+  advance(game, .25, false, 1);
+  assert.equal(trip.hits, 3, 'a sound during cooldown is not queued');
+  assert.equal(trip.charge, game.partner === 6 ? .75 : 0, 'voice attack does not accumulate legacy charge');
+});
+
+test('sound cooldown is configurable and a late tick emits at most one attack', () => {
+  const game = newGame();
+  game.story = null;
+  game.runs[0] = newTrip(0);
+  nextEvent(game, 'battle');
+  const trip = game.runs[0];
+  trip.hp = trip.maxHp = 1000;
+  advance(game, .1, true, .3);
+  advance(game, .2, true, .3);
+  assert.equal(trip.hits, 1);
+  advance(game, .1, true, .3);
+  assert.equal(trip.hits, 2);
+  advance(game, 10, true, .3);
+  assert.equal(trip.hits, 3, 'no catch-up burst after delayed timers');
+  assert.equal(trip.soundCooldown, .3);
+  game.story = 0;
+  advance(game, 1, true, .3);
+  assert.equal(trip.hits, 3, 'story pauses attacks and cooldown');
+  assert.equal(trip.soundCooldown, .3);
+});
+
 test('spells damage enemies, award lethal loot once, and complete boss stories', () => {
   const game = newGame();
   game.story = null;

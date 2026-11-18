@@ -22,6 +22,7 @@ export function newTrip(country) {
     hp: 0,
     maxHp: 0,
     charge: 0,
+    soundCooldown: 0,
     strike: 0,
     hits: 0,
     reacted: false,
@@ -150,16 +151,22 @@ export function castSpell(game, spell) {
   return trip.hp > 0 ? 'hit' : victory(game, trip);
 }
 
-export function advance(game, dt, attacking) {
+export function advance(game, dt, attacking, attackCooldown = 0) {
   if (game.story !== null) return;
   const trip = game.runs[game.country];
   trip.elapsed += dt;
   trip.strike = Math.max(0, trip.strike - dt);
+  trip.soundCooldown = Math.max(0, (trip.soundCooldown ?? 0) - dt);
   if (trip.stage === 'battle') {
     if (!attacking) return;
-    trip.charge += dt;
-    if (trip.charge < 1) return;
-    trip.charge -= 1;
+    if (attackCooldown > 0) {
+      if (trip.soundCooldown > 1e-9) return;
+      trip.soundCooldown = attackCooldown;
+    } else {
+      trip.charge += dt;
+      if (trip.charge < 1) return;
+      trip.charge -= 1;
+    }
     strike(game, trip);
     return trip.hp > 0 ? 'hit' : victory(game, trip);
   }

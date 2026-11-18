@@ -867,45 +867,7 @@ body.on-quest {
 .on-quest.music-open #player {
   height: min(300px, calc(100dvh - 96px));
 }
-#modeDialog {
-  width: min(400px, calc(100% - 32px));
-  max-height: 90dvh;
-  overflow: auto;
-  padding: 22px;
-  border: 1px solid var(--edge);
-  border-radius: 12px;
-  background: var(--panel);
-  color: #f6f1e4;
-}
-#modeDialog::backdrop {
-  background: #080d16bb;
-}
-#modeDialog h2 {
-  margin-bottom: 14px;
-}
-#modeDialog button {
-  display: block;
-  width: 100%;
-  min-height: 44px;
-  text-align: left;
-}
-#modeDialog button strong,
-#modeDialog button span {
-  display: block;
-}
-#modeDialog button span {
-  font-size: 13px;
-  font-weight: 400;
-  margin-top: 3px;
-}
-#qualityMode,
-#bluetoothMode {
-  margin-top: 10px;
-  background: #263444;
-  color: #f6f1e4;
-  border: 1px solid var(--edge);
-}
-#bluetoothStatus {
+#micStatus {
   flex-basis: 100%;
   order: 2;
   margin: 8px 0 0;
@@ -914,15 +876,9 @@ body.on-quest {
   color: var(--dim);
   overflow-wrap: anywhere;
 }
-.on-quest .readout:has(#bluetoothStatus:not([hidden])) {
+.on-quest .readout:has(#micStatus:not([hidden])) {
   flex-wrap: wrap;
   gap: 6px 12px;
-}
-#modeDialog #cancelMode {
-  margin-top: 8px;
-  background: transparent;
-  color: var(--dim);
-  text-align: center;
 }
 #personName,
 #nameStatus,
@@ -1013,6 +969,10 @@ body.on-quest {
 .drum-settings h2 { font-size: 20px; }
 .drum-settings p { color: var(--dim); margin: 8px 0 12px; }
 .drum-settings select { margin: 4px 14px 4px 5px; }
+.mic-settings > label { display: block; margin-top: 12px; }
+.mic-settings > select { display: block; width: 100%; margin: 5px 0 12px; }
+.mic-settings #loadMicrophones { width: 100%; }
+#settingsAction { display: block; width: 100%; margin-top: 20px; }
 #heroPortraitPreview,
 #heroPhotoPreview {
   display: block;
