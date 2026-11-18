@@ -849,10 +849,11 @@ body.on-quest {
   width: min(440px, calc(100% - 16px));
   margin: 0;
   padding: 10px;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
   box-shadow: 0 8px 24px #091019aa;
 }
 .on-quest.music-open #musicPanel > .heading,
-.on-quest.music-open #musicPanel > details,
 .on-quest.music-open #musicPanel > p {
   display: none;
 }

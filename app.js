@@ -25,7 +25,6 @@ function loadList(raw){
   $('appleLink').href=link;$('playlist').value=link;
   save('playlist',link);
 }
-try{loadList(read('playlist')||defaultList);}catch{loadList(defaultList);}
 $('playlistForm').onsubmit=event=>{
   event.preventDefault();
   try{loadList($('playlist').value);$('formError').textContent='';$('editor').open=false;}
@@ -130,6 +129,11 @@ document.addEventListener('pointerdown', event => {
   if (!event.target.closest('.battle-tools, .battle-actions') && !$('battleTools').hidden) battleMenu(false);
 });
 function musicDrawer(open) {
+  if (open && !$('player').hasAttribute('src')) {
+    try { loadList(read('playlist') || defaultList); }
+    catch { loadList(defaultList); }
+  }
+  $('musicPanel').hidden = !open;
   document.body.classList.toggle('music-open', open);
   $('musicPanel').inert = !open;
   $('musicToggle').setAttribute('aria-expanded', String(open));
@@ -145,6 +149,8 @@ document.addEventListener('keydown', (event) => {
   }
 });
 function focusBattle(on) {
+  $('musicPanel').hidden = true;
+  if (!on) $('player').removeAttribute('src');
   songbookUI.setBattle(on);
   document.body.classList.toggle('on-quest', on);
   document.body.classList.remove('music-open');

@@ -531,7 +531,6 @@ export function camp(game, persist, previewSpell = () => {}) {
     renderSummary();
     for (const el of document.querySelectorAll('.camp-page')) el.hidden = el.id !== tab;
     for (const el of document.querySelectorAll('[data-tab]')) selected(el, el.dataset.tab === tab);
-    $('musicPanel').hidden = tab !== 'map';
     if (tab === 'map') renderMap();
     if (tab === 'crew') renderCrew();
     if (tab === 'books') renderBook();
