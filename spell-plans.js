@@ -7,6 +7,7 @@ import { forgePlan } from './spell-forge.js';
 import { frostPlan } from './spell-frost.js';
 import { galePlan } from './spell-gale.js';
 import { amberPlan } from './spell-amber.js';
+import { thunderPlan } from './spell-thunder.js';
 
 // Each spell owns its choreography: camera shots, impact beat, speed lines, flashes,
 // shake curve and the world-space effect layers drawn behind/in front of the actors.
@@ -15,7 +16,8 @@ export const spellPlans = {
   'legend-0': forestPlan, 'legend-1': tidePlan, 'legend-2': forgePlan,
   'legend-3': frostPlan,
   'legend-4': galePlan,
-  'legend-5': amberPlan
+  'legend-5': amberPlan,
+  'legend-6': thunderPlan
 };
 // Legendary skills without a finished cinematic settle with the cut-in only.
 export const hasCinematic = (spell) => !!spellPlans[spell.id];

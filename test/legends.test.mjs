@@ -97,7 +97,7 @@ test('equipping swaps the charge skill; switching changes it; unequipping restor
 });
 
 test('legendary cinematic availability matches the finished catalogue entries', () => {
-  for (const legend of legends) assert.equal(hasCinematic(legend.spell), legend.index <= 5, legend.name);
+  for (const legend of legends) assert.equal(hasCinematic(legend.spell), legend.index <= 6, legend.name);
   assert.ok(forestPlan.shots.length >= 10);
   assert.ok(forestPlan.duration > 12000);
 });
