@@ -43,42 +43,40 @@ tuning damage numbers, or audio work.
    `spell-cinematic.js`, `spell-fx.js`, `spell-plans.js`, `scene.js` (`spellScene`), one
    `spell-*.js` per move (`spell-forest.js` is the most complete example) and
    `test/spell-cinematic.test.mjs`.
-2. **Write the story in one sentence**, then break it into beats with
-   [references/storyboard-craft.md](references/storyboard-craft.md): narrative arc, shot vocabulary,
-   rhythm and the storyboard table. Fill the table (time, caption, framing, camera move, actor action,
-   effects, sound/shake/flash) before writing code.
+2. **Choose what to redesign.** For a visual revision, first compare the preferred move and the
+   current move at equivalent beats using [visual review](references/visual-review.md). A surface
+   or framing problem can often be fixed within the existing shot. If the pose, weapon and
+   impact never read as one action, redesign those beats together. For a new or reworked
+   sequence, write the action in one sentence and map the shots using
+   [storyboard craft](references/storyboard-craft.md). For a local polish, sketch the affected beats.
 3. **Implement the plan** with
    [references/canvas-implementation.md](references/canvas-implementation.md): the plan object, shot
    tuples and `cameraAt`, actor poses, back/front layers, impact/warp/hit-stop and freeze, reduced
    motion, letterbox bars and title card. Reuse the project's helpers instead of inventing a second
    system.
-4. **Look at real frames** with [references/visual-review.md](references/visual-review.md):
-   render a contact sheet of key frames through the actual player when available,
-   write down what fails to read, fix it and render again. Do this every time.
-   Passing tests says nothing about whether the move looks good.
-   When revising a move for visual taste, start here. Capture the preferred move and the current
-   one at matching beats. Judge the featured prop at its largest zoom and watch the handoff from
-   anticipation through contact at playing speed.
+4. **Look at real frames** with [visual review](references/visual-review.md). Inspect the prop
+   at its largest zoom, replay the handoff from anticipation through contact at normal speed,
+   and check that the changed scene is still readable at the end and in the fixed camera.
 5. **Verify** with [references/testing-and-qa.md](references/testing-and-qa.md): every-frame render
    tests against a strict mock context, storyboard invariants, a smoke run through the real scene,
    and the quality checklist.
-6. **Report** the shot list with timings, what changed per file, what the frame review found and
-   fixed, test results, how frames were viewed, any unverified visual behaviour, and any
-   pre-existing issues you left alone.
+6. **Check existing move documentation** if shot names, timings or depicted action changed.
+   Use the final plan as the source for those details. Report the visible changes, how you
+   verified them and any gaps in visual coverage.
 
 ## What "epic" means here
 
-A move reads as epic when it has **escalation and contrast**, not just more particles:
+Escalation comes from changes in scale, pace and what the actors do:
 
-- a clear arc — signature → ignition → transformation → threat → gathering → apparition →
-  hoist/charge → dread → strike → freeze → impact → afterglow → title;
+- a clear arc from the hero's initiating action through the strike and its consequence.
+  Choose intermediate beats that show how the move builds and where its power comes from;
 - **scale contrast** — tight close-ups (zoom 4–7×) against towering wides where the weapon or
-  apparition leaves the frame;
+  apparition dwarfs the hero;
 - **low angles** — subject in the lower third, sky above, slight Dutch roll, weapon exiting the top;
 - **camera that obeys the action** — cut on the action beat, track the blade, push in while power
   builds, pull out to show consequence;
-- **silence before the blow** — shake and motion drop to zero in a short freeze, then the impact
-  gets the biggest flash, shake, slash and enemy reaction of the whole sequence;
+- **contrast before the blow** — a short pause can make the final motion register. Let contact,
+  the foe's reaction and the change to the scene carry the peak;
 - **readable actors** — the hero and foe visibly anticipate, act, react and recover, so the
   effects are driven by bodies rather than floating on top;
 - **readable shapes** — masses separate from the background, giants have an identifiable reveal,

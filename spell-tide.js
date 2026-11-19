@@ -41,9 +41,10 @@ function foePose(t, w, reduced) {
   return { dx: before.dx + force * (42 * eases.out(k) - 12 * eases.smooth(settle)),
     dy: -force * 24 * Math.sin(k * Math.PI), tilt: before.tilt + force * (.65 * eases.out(k) - .3 * settle) };
 }
-function lengthAt(t) {
-  const grown = 260 * eases.out(span(t, FORM, RAISE + 300));
-  return grown - 128 * eases.smooth(span(t, CHARGE, DREAD));
+function lengthAt(t, reduced) {
+  const raisedLength = reduced ? 146 : 260;
+  const grown = raisedLength * eases.out(span(t, FORM, RAISE + 300));
+  return grown - (raisedLength - 132) * eases.smooth(span(t, CHARGE, DREAD));
 }
 const handAt = pose => [HAND[0] + pose.dx, HAND[1] + pose.dy];
 
@@ -149,7 +150,7 @@ function seaCrown(c, t, w, color, reduced) {
   const small = reduced || t >= IMPACT + 2100;
   // During the forming beat the whole crown shrinks down onto the trident's head, so it is
   // never left as a half-framed slab: the crown visibly becomes the weapon.
-  const pose = heroPose(t), [hx, hy] = handAt(pose), len = lengthAt(t), sink = eases.inOut(span(t, FORM, FORM + 800));
+  const pose = heroPose(t), [hx, hy] = handAt(pose), len = lengthAt(t, reduced), sink = eases.inOut(span(t, FORM, FORM + 800));
   const headX = hx + Math.sin(pose.angle) * len * .85, headY = hy - Math.cos(pose.angle) * len * .85 + 10;
   const size = small ? 1.1 : 3.2 + (.35 - 3.2) * sink;
   c.save();
@@ -282,7 +283,7 @@ function drawBack(c, t, w, { color, reduced }) {
 
 function drawFront(c, t, w, { color, reduced }) {
   const dense = reduced ? .3 : 1, pose = heroPose(t), [hx, hy] = handAt(pose);
-  const len = lengthAt(t), dx = Math.sin(pose.angle), dy = -Math.cos(pose.angle);
+  const len = lengthAt(t, reduced), dx = Math.sin(pose.angle), dy = -Math.cos(pose.angle);
   c.save(); c.globalCompositeOperation = 'lighter';
   // The three original weapon tips are introduced in sequence, attached to the real grip.
   if (t < CALL + 300) {
@@ -362,22 +363,23 @@ function drawFront(c, t, w, { color, reduced }) {
     }
   }
   if (t >= IMPACT && t < IMPACT + 2400) {
-    const k = Math.max(0, (w - W_IMPACT) / 1000), fade = 1 - span(k, .25, 1.8);
-    // Three prongs, one release: coloured beams with thin white cores, so the shape stays
-    // readable instead of whiting out the frame. All fronts start at the warped contact time.
+    const k = Math.max(0, (w - W_IMPACT) / 1000), fade = 1 - span(k, .07, .82);
+    // Start each wake at its tine. The arcs peel apart past the foe as the wall opens.
+    const head = Math.min(52, len * .3), spread = Math.min(8 + len * .045, head * .42);
     for (const n of [-1, 0, 1]) {
-      const y = 153 + n * 12, reach = 160 + eases.out(span(k, 0, .24)) * 700;
-      for (const [wd, tint, a] of [[(n ? 3 : 5) * (1 - span(k, 0, .9)), color, .45], [(n ? 1 : 2) * (1 - span(k, 0, .7)), WHITE, 1]]) {
+      const along = len - (n ? head * .14 : 0), side = n * spread * .95;
+      const x = hx + dx * along - dy * side, y = hy + dy * along + dx * side;
+      const reach = 45 + eases.out(span(k,0,.27)) * 375, curl = n * span(k,0,.38) * 19;
+      for (const [wd, tint, a] of [[(n ? 2 : 3.5) * fade, color, .52], [(n ? .7 : 1.15) * fade, WHITE, .84]]) {
         if (wd <= 0) continue;
-        c.globalAlpha = fade * a * (n ? .8 : 1); c.fillStyle = tint;
-        c.beginPath(); c.moveTo(150, y); c.lineTo(FOE[0], y - wd);
-        c.lineTo(FOE[0] + reach, y); c.lineTo(FOE[0], y + wd); c.closePath(); c.fill();
+        c.globalAlpha = fade * a * (n ? .8 : 1);
+        polygon(c,tint,[x,y, x+reach*.23,y-wd, x+reach,y+curl, x+reach*.23,y+wd]);
       }
     }
-    for (let n = 0; n < 3; n++) {
-      const q = span(k, n * .09, .9 + n * .09);
-      c.globalAlpha = (1 - q) * fade * .85; c.strokeStyle = n ? color : WHITE; c.lineWidth = 3 - n * .7;
-      c.beginPath(); c.ellipse(FOE[0] + q * 65, 153, 3 + q * 38, 4 + q * (140 + n * 35), 0, 0, Math.PI * 2); c.stroke();
+    for (let n = 0; n < (reduced ? 1 : 2); n++) {
+      const q = span(k,n*.08,.66+n*.08);
+      c.globalAlpha = (1-q)*fade*.65; c.strokeStyle = n ? color : PEARL; c.lineWidth = 1.5;
+      c.beginPath(); c.ellipse(FOE[0]+q*94,153,3+q*24,4+q*77,0,-1.36,1.36); c.stroke();
     }
     glow(c, FOE[0], 153, 20 + k * 80, color, fade * .3);
     // The water answers: a cone of heavy droplets bursts out behind the foe and falls.
@@ -430,13 +432,13 @@ export const tidePlan = {
     [DREAD, '威壓 · 三鋒鎖命', [336, 163, 4.2, -.09], [338, 164, 4.8, -.04], 'out'],
     [STRIKE, '突進 · 王令破浪', [150, 150, 1.6, -.08], [299, 151, 2.5, .03], 'in', 90],
     [FREEZE, '靜海 · 鋒前一瞬', [321, 153, 3.1, .03], [323, 153, 3.3, .015], 'out'],
-    [IMPACT, '貫穿 · 白潮天決', [345, 151, 3.4, -.05], [362, 150, 2.5, .02], 'out'],
+    [IMPACT, '貫穿 · 白潮天決', [322, 150, 2.33, -.04], [351, 148, 1.85, .02], 'out'],
     [IMPACT + 800, '餘潮 · 海天一線', [352, 149, 2.05, .02], [250, 103, .94, 0], 'inOut'],
     [IMPACT + 2100, '終幕 · 滄海王令', [230, 122, 1.35, 0], [225, 127, 1.5, 0], 'smooth']
   ],
   close: [[0, SURGE], [3600, CROWN], [CHARGE, STRIKE], [FREEZE, IMPACT + 800]],
   lines: [['v', SURGE, 3500], ['spin', 4400, CROWN], ['v', RAISE, CHARGE], ['h', CHARGE, STRIKE], ['zoom', STRIKE, FREEZE]],
-  flashes: [[1400, 250, .42, 'color'], [7450, 200, .3, 'color'], [IMPACT, 260, .55, WHITE]],
+  flashes: [[1400, 250, .3, 'color'], [7450, 200, .23, 'color'], [IMPACT, 170, .35, PEARL]],
   shake(t) {
     if (t >= FREEZE && t < IMPACT) return 0;
     if (t >= IMPACT) return 15 * Math.exp(-(t - IMPACT) / 330);

@@ -87,8 +87,14 @@ scale of it.
 - The foe reacts on cue: tremble amplitude grows with threat, it backs off and tilts to look up
   under dread, and on impact it is thrown back, lifted and tilted, then partially recovers.
   Drive knockback with **warped** time relative to the warped impact, so it respects the hit-stop.
-- When a giant weapon grows from the hand, compute its length as a function of time (forming,
-  then swelling during charge) and reuse that function for every effect along the blade.
+- For a held weapon, draw the prop around the actor renderer's actual grip, with the pose angle
+  and the same rounding or pivot offsets the actor uses. Reuse its animated length and scale
+  to place attached effects. Sample the same grip and weapon geometry at earlier times for the
+  trail. Derive contact from the striking face or tip and align the first burst and ground mark
+  with that point. For a ground strike, the shockwave reaching the foe can explain the reaction.
+- When replacing the normal weapon with a larger version, inspect the swap at both ends and
+  the prop's layer relative to the hand. Check for two weapons, a detached handle or a sudden
+  change of silhouette. Include the catalogue preview if it can start with different gear.
 
 ## 5. Layers
 
@@ -106,11 +112,11 @@ scale of it.
   `rand`. This keeps frames reproducible for tests and lets time warping freeze them.
 - Scale particle counts with a density factor (`reduced ? .35 : 1`).
 
-For a detailed prop in sing-rpg, a plan can expose `art: new URL('./assets/spells/…', import.meta.url).href`.
-The player decodes it before starting the clock and passes the image as `ctx.art` to both layers.
-In `spell-forge.js` the two faces and socket are cropped from one image during assembly, then
-drawn together for the fall. Use one attachment point for each joint and inspect the transition
-in the normal preview and the fixed-camera view.
+The current `spell-forge.js` draws its maul in Canvas grip space and uses the same pose and
+dimensions to place the incoming lava streams and the swing trail. For moves that use a sprite,
+a plan can expose `art: new URL('./assets/spells/…', import.meta.url).href`. The player decodes
+it before starting the clock and passes it as `ctx.art` to both layers. The same attachment and
+contact checks apply to sprite-based props.
 
 ## 6. Time: impact, warp, hit-stop and freeze
 
@@ -125,12 +131,14 @@ in the normal preview and the fixed-camera view.
   from `W_IMPACT = warp(IMPACT)` instead (`k = (w − W_IMPACT) / 1000`). Comparing with `IMPACT`
   produces negative progress at the moment of contact.
 - Shake: zero across the freeze, maximum at impact (decaying exponentially over ~400 ms).
-- Flashes: a short white flash at the freeze start, the strongest flash at the impact.
+- If using a flash, tune it with the actual overlay and additive layers. Inspect the held gap,
+  contact and reaction in adjacent frames.
 
 ## 7. Reduced motion, compact mode, skip and preview
 
 - **Reduced motion** (`prefers-reduced-motion`): a fixed camera, fewer particles, and no speed
   lines or flashes. The story still plays to the end and the result still settles.
+  Fit the reveal and wind-up to the fixed camera if needed. Preserve the contact point.
 - **Compact mode** (a user setting): skip the cinematic entirely and show only the cut-in and
   damage. Plans never check this; the caller decides before playing.
 - **Skip / Esc**: ends playback as completed; the caller settles once. A playback closed by
@@ -202,7 +210,7 @@ export const movePlan = {
   ],
   close: [[FREEZE, IMPACT + 800]],
   lines: [['zoom', STRIKE, FREEZE]],
-  flashes: [[FREEZE, 110, .85, '#ffffff'], [IMPACT, 750, 1, '#ffffff']],
+  flashes: [[IMPACT, 160, .35, 'color']],
   shake: (t) => (t >= FREEZE && t < IMPACT ? 0 : t >= IMPACT ? 15 * Math.exp(-(t - IMPACT) / 420) : 0),
   pose: (t, w) => ({ hero: heroPose(t), foe: foePose(t, w) }),
   subtitle: '— … —', back: drawBack, front: drawFront

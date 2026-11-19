@@ -28,15 +28,38 @@ function moon(c,t) {
   }
   if(t>=HIT){
     const k=eases.out(span(t,HIT,HIT+750));
-    polygon(c,'#17192e',[-43,-35,-43,-29,44,35+4*k,44,23]);
-    stroke(c,'#e6cafa',.4+1.3*k,[-43,-35,44,23]);
+    polygon(c,'#151426',[-43,-35,-43,-33+6*k,44,25+10*k,44,23]);
+    stroke(c,'#aaa0c7',.9,[-43,-33+6*k,44,25+10*k]);
+    stroke(c,'#e6cafa',.9,[-43,-35,44,23]);
   }
   c.restore();c.restore();
 }
 
 // A tapered serpentine body travels around the moon. The head follows the path tangent,
 // so its horns, jaws and trailing whiskers remain part of the same silhouette as the neck.
-function lunarDragon(c,t,w,art) {
+function dragonHead(c, jaw, drift) {
+  // The neck enters behind the cheek. The lit planes face the rim of the moon.
+  polygon(c,'#242034',[-22,3,-19,-5,-9,-10,1,-12,10,-9,14,-4,23,-3,27,2,25,8,15,10,4,13,-10,12]);
+  polygon(c,'#9a83a9',[-18,-4,-14,-13,-19,-26,-14,-23,-5,-10,0,-9]);
+  polygon(c,'#c2adca',[-9,-9,-3,-16,-5,-29,0,-23,5,-11,8,-8]);
+  polygon(c,'#50415e',[-20,4,-16,-3,-9,-4,-1,-11,10,-9,13,-4,23,-3,27,2,22,5,9,4,2,9,-9,11]);
+  polygon(c,'#9986a7',[-16,-3,-10,-5,-2,-11,10,-9,13,-4,21,-3,24,0,16,-1,7,-5,0,-5]);
+  polygon(c,'#716080',[-17,6,-11,3,-9,0,-3,1,-4,7,-10,10]);
+  polygon(c,'#2a2237',[0,-5,8,-5,11,-2,6,0,0,-2]);
+  polygon(c,'#edd498',[2,-4,9,-3,5,-1,3,-2]);
+  c.fillStyle='#32263b'; c.fillRect(5,-4,1,3);
+  c.fillRect(22,0,3,1.5);
+  c.save(); c.translate(4,5); c.rotate(jaw);
+  polygon(c,'#211d30',[0,-1,20,-1,22,2,19,7,8,9,0,6]);
+  polygon(c,'#6b5579',[2,3,8,5,20,4,18,7,6,8,1,6]);
+  polygon(c,'#c9b6cd',[11,3,13,0,15,4]);
+  c.restore();
+  polygon(c,'#cdbacd',[15,4,18,4,16,8]);
+  stroke(c,'#bcaac9',.75,[21,2,30,-1,38,1+drift*.45,45,7+drift]);
+  stroke(c,'#9381ac',.65,[20,4,27,8,33,13+drift*.5,43,16+drift]);
+}
+
+function lunarDragon(c,t,w) {
   const climb=smooth(t,4220,6350),fade=1-smooth(t,HIT,HIT+1250);
   if(!climb || !fade)return;
   const [mx,my]=MOON;
@@ -65,25 +88,28 @@ function lunarDragon(c,t,w,art) {
   }
   const [hx,hy]=coord(last,47+3*Math.sin(last*3+w*.0007));
   c.translate(hx,hy);c.rotate(last + Math.PI/2 - .96*smooth(t,5800,6400));c.scale(.6+.4*climb,.6+.4*climb);
-  const width = 54, height = width * art.height / art.width;
-  // The short neck at the left edge seats on the last body segment.
-  c.translate(12, 0);
-  c.drawImage(art, -20, -height * .75, width, height);
+  c.translate(13, 0);
   const drift = Math.sin(w / 540) * 2 - 5 * pull + 4 * strike;
-  c.strokeStyle='#bcaec8';c.lineWidth=.58;
-  c.beginPath();c.moveTo(29,-2);c.bezierCurveTo(43,-7,40,13+drift,52,6+drift);c.stroke();
-  c.beginPath();c.moveTo(27,0);c.bezierCurveTo(35,3,30,18+drift,45,14+drift);c.stroke();
+  dragonHead(c, .1 + .19 * pull - .14 * strike, drift);
   c.restore();
 }
 
-function night(c,t,w,{reduced,art}){
+function night(c,t,w,{reduced}){
   const dark=smooth(t,0,2700);
   skyWash(c,'#14152b','#423952',.96*dark);c.save();c.globalAlpha=dark;
   for(let i=0;i<(reduced?30:65);i++){
     const x=rand(i,18)*600-60, y=rand(i,19)*170-20;
     c.fillStyle=i%5?'#9a92b1':'#d4c6c4';c.fillRect(x,y,1,i%5?1:2);
   }
-  c.restore();moon(c,t);lunarDragon(c,t,w,art);
+  c.restore();moon(c,t);lunarDragon(c,t,w);
+  if (t >= HIT) {
+    const shear = eases.out(span(w-contact,0,810));
+    const far = 336 + 111 * shear;
+    c.save();c.globalAlpha = shear * (1 - .36 * smooth(t,11500,13900));
+    polygon(c,'#201e30',[326,177,369,179,far,181,far+12,189,369,186,325,181]);
+    stroke(c,'#a69ab7',.85,[328,178,369,180,far+4,184]);
+    c.restore();
+  }
 }
 
 function moonblade(c,x,y,size,angle,opacity) {
@@ -105,17 +131,19 @@ function reaper(t) {
 }
 
 function reap(c,t,w,{foeY,reduced}) {
-  const hero=reaper(t),handX=159+hero.dx,handY=164+hero.dy;
+  const hero=reaper(t),handX=159+Math.round(hero.dx),handY=164+Math.round(hero.dy);
   c.save();c.translate(handX,handY);c.rotate(hero.angle);c.globalAlpha=1-hero.weaponOpacity;
   stroke(c,'#61485e',2.4,[0,3,0,-22]);stroke(c,'#d1a9c7',.65,[-.6,2,-.6,-22]);
   moonblade(c,-4,-22,.26,-1.1,1-hero.weaponOpacity);c.restore();
   const unhook=smooth(t,7350,CUT),fly=eases.in(span(t,CUT,HOLD)),age=w-contact;
   const x=286+26*fly+(t>=HIT?17+85*eases.out(span(age,0,540)):0);
   const y=78+12*unhook+(foeY-90)*fly+ (age>0?26*eases.out(span(age,0,540)):0);
-  if(t>=7350 && t<CUT){
-    c.save();c.globalAlpha=.72*Math.sin(unhook*Math.PI);
-    c.strokeStyle='#cfb7de';c.lineWidth=.9;c.beginPath();c.moveTo(handX-7,handY-17);
-    c.quadraticCurveTo(219,151-31*unhook,x,y);c.stroke();c.restore();
+  if(t>=7350 && t<HOLD){
+    c.save();c.globalAlpha=.72*smooth(t,7350,7640)*(1-fly);
+    const hookX=handX-4*Math.cos(hero.angle)+22*Math.sin(hero.angle);
+    const hookY=handY-4*Math.sin(hero.angle)-22*Math.cos(hero.angle);
+    c.strokeStyle='#cfb7de';c.lineWidth=1.1;c.beginPath();c.moveTo(hookX,hookY);
+    c.quadraticCurveTo(219,146-27*unhook,x,y);c.stroke();c.restore();
   }
   if (!reduced && fly > 0 && age < 220) {
     for (const lag of [2, 1]) {
@@ -136,7 +164,6 @@ function reap(c,t,w,{foeY,reduced}) {
 }
 
 export const eclipsePlan={
-  art: new URL('./assets/spells/moon-dragon.webp', import.meta.url).href,
   duration:13900,impact:HIT,titleAt:12150,attack:[1300,10950],warp,subtitle:'— 龍銜月缺 · 一鐮裁夜 —',
   shots:[
     [0,'銀鉤 · 刃照新月',[155,145,5.3,-.03],[155,141,6.2,.02],'smooth'],
@@ -145,7 +172,7 @@ export const eclipsePlan={
     [4350,'遊龍 · 鱗循月脊',[238,90,1.2,-.04],[244,87,1.39,.015],'out'],
     [6200,'銜光 · 龍鬚捧月',[280,71,2.45,-.045],[302,78,3.05,.02],'out'],
     [7450,'收鉤 · 銀弧離輪',[208,115,1.48,-.06],[233,114,1.68,-.02],'smooth'],
-    [CUT,'裁夜 · 缺月斜墜',[280,89,1.95,-.05],[314,153,2.25,.025],'in'],
+    [CUT,'裁夜 · 缺月斜墜',[229,111,1.29,-.05],[314,150,2.15,.025],'in'],
     [HOLD,'無聲 · 月牙臨界',[319,157,3.1,0],[321,157,3.18,0],'out'],
     [HIT,'斷蝕 · 一鐮分夜',[334,155,2.85,-.04],[352,150,2.12,.02],'out'],
     [10950,'月塵 · 暗鱗歸天',[352,150,2.12,.02],[248,114,1.08,0],'out'],

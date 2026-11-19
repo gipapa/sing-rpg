@@ -52,7 +52,7 @@ function archer(t) {
 }
 
 function frostBow(c, t, w, { reduced, foeY }) {
-  const hero = archer(t), x = 159 + hero.dx, y = 164 + hero.dy;
+  const hero = archer(t), x = 159 + Math.round(hero.dx), y = 164 + Math.round(hero.dy);
   const form = smooth(t, 900, 4200), draw = smooth(t, 4600, 7480);
   const release = span(t, RELEASE, RELEASE + 540);
   const bounce = reduced ? 0 : Math.sin(release * Math.PI * 4) * (1 - release) ** 2;
@@ -116,11 +116,6 @@ function frostBow(c, t, w, { reduced, foeY }) {
     c.restore();
   }
   if(age<0)return;
-  const grow=eases.out(span(age,0,760));
-  for(let i=0;i<15;i++) {
-    const k=span(grow*15,i,i+1);
-    if(k) crystal(c,174+i*13,183,(5+rand(i,3)*23)*k,4,4+rand(i,4)*7);
-  }
   c.save();
   for(let i=0;i<(reduced?6:21);i++){
     const k=span(age,0,480+rand(i,13)*510);
@@ -128,6 +123,22 @@ function frostBow(c, t, w, { reduced, foeY }) {
     crystal(c,332+k*(22+rand(i,12)*75),foeY+(rand(i,14)-.65)*85*k+24*k*k,2+rand(i,15)*6,1.5,2);
   }
   c.restore();
+}
+
+function battlefield(c, t, w, ctx) {
+  iceField(c, t, w, ctx);
+  if (t < HIT) return;
+  const age = w - hitTime;
+  // The arrow's contact starts the frost. It runs downrange and back along the wake.
+  for (let i = 0; i < 20; i++) {
+    const back = i >= 7, step = back ? i - 6 : i;
+    const delay = (back ? 150 : 0) + step * 48;
+    const growth = eases.out(span(age,delay,delay+220));
+    if (!growth) continue;
+    const x = 335 + (back ? -1 : 1) * (step * 11 + rand(i, 58) * 5);
+    const h = (back ? 6 : 12) + rand(i, 3) * (back ? 16 : 25);
+    crystal(c,x,181+rand(i,59)*6,h*growth,4+rand(i,61)*4,5+rand(i,4)*9);
+  }
 }
 
 export const frostPlan={
@@ -139,7 +150,7 @@ export const frostPlan={
     [4150,'落星 · 光結成矢',[209,94,2.1,-.04],[165,147,2.6,.02],'out'],
     [5800,'滿弦 · 晶枝低垂',[155,146,2.1,-.06],[134,152,2.9,-.035],'smooth'],
     [7250,'照準 · 霜臨眉際',[323,158,3.2,.045],[334,160,4,.02],'out'],
-    [RELEASE,'穿星 · 一線疾馳',[175,153,2.3,0],[309,157,2.6,.02],'in'],
+    [RELEASE,'穿星 · 一線疾馳',[194,150,1.83,0],[300,155,2.3,.02],'in'],
     [HOLD,'止息 · 矢前寸雪',[318,158,3.4,0],[321,158,3.48,0],'out'],
     [HIT,'貫霜 · 冰華迸裂',[337,156,2.9,-.025],[358,151,2.4,0],'out'],
     [10150,'冰徑 · 萬星垂地',[358,151,2.4,0],[246,124,1.15,0],'out'],
@@ -147,5 +158,5 @@ export const frostPlan={
   close:[[0,1150],[5800,RELEASE],[HOLD,10150]],lines:[['h',RELEASE,HOLD]],flashes:[[HIT,180,.29,'#e5fdff']],
   shake:t=>t>=HIT?6*Math.exp(-(t-HIT)/175):0,
   pose:(t,w,reduced)=>({hero:archer(t),foe:recoil(w-hitTime,smooth(t,6300,7900),33,12,reduced)}),
-  back:iceField,front:frostBow
+  back:battlefield,front:frostBow
 };

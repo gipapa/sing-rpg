@@ -34,7 +34,7 @@ contains the impact, a subtitle exists, and reduced motion yields the same camer
 **Storyboard invariants.** Test what the storyboard promises, not the wording:
 
 - the beat shots exist in order;
-- framing: the hoist shot starts as a close-up (zoom ≥ 4) and cranes up; the charge pushes in;
+- framing: key subjects stay readable through any tracking or crane the move relies on;
 - action: the weapon is cocked back before the strike and travels a large arc by the freeze;
 - freeze: the pose barely changes across it, shake is exactly 0 throughout it, and the impact's
   shake exceeds every other moment;
@@ -68,11 +68,14 @@ Readability (checked on rendered frames)
 - [ ] Material cues suit the project; unwanted regular bars or stripes don't read as UI or a chart.
 - [ ] Each apparition has an identifiable reveal, and transitions don't leave an unexplained slab.
 - [ ] Giant weapons keep a recognizable silhouette and sufficient separation between planes.
-- [ ] Contact and reaction remain readable around any deliberate impact flash; inspect +50 to +300 ms.
+- [ ] For a held weapon, at least part of the swing shows the grip, weapon head and target or
+  impact area together. Adjacent frames show the wind-up, contact and reaction in order.
+- [ ] Check both camera modes for the weapon reveal, contact, and any lasting scene change.
+  Inspect adjacent frames around a deliberate flash.
 
 Story and design
 - [ ] One-sentence concept; one motif repeated across weapon, world, apparition, slash and afterglow.
-- [ ] Escalation: each beat is bigger than the last; the impact is the peak in flash, shake and scale.
+- [ ] The move builds to a distinct impact and gives its consequence time to read.
 - [ ] Scale contrast: at least one extreme close-up and one wide where something dwarfs the hero.
 - [ ] A real low angle: subject in the lower third, roll, the tall element leaves the frame top.
 - [ ] Freeze before contact: stillness, darkness, the blade lit, zero shake.
@@ -83,8 +86,10 @@ Story and design
 Camera and timing
 - [ ] Every shot moves; cuts land on action beats; whips only into fast actions.
 - [ ] Visible-rectangle check done for each shot's start and end.
-- [ ] Impact ≈ 75–80% of the duration; title after the impact settles.
+- [ ] The reaction and aftermath have time to register before the title.
 - [ ] Bars on close-ups and the freeze-impact stretch.
+- [ ] If the move has existing docs, check the final plan's `shots`, `impact` and `duration`
+  against the documented shot names, count and times. Confirm the described actions in playback.
 
 Safety and behaviour
 - [ ] Damage, energy and progress are unchanged and settled once, outside the plan.

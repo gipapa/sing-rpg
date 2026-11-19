@@ -17,7 +17,9 @@ slash and in the afterglow.
 
 ## 2. Narrative arc (beats)
 
-Not every move needs every beat, but keep the order of escalation.
+Combine beats that tell one continuous action. For a conjured weapon, show what feeds its
+growth, how the hero takes its weight and what that weight does at contact. Give any lasting
+change a shot long enough to read before the title appears.
 
 | Beat | Purpose | Typical framing |
 |---|---|---|
@@ -33,7 +35,7 @@ Not every move needs every beat, but keep the order of escalation.
 | Dread | The foe looks up at what is coming | Foe close-up, lit from above, cowering |
 | Strike | The swing/thrust/release | Tracking shot following the weapon, speed lines, whip-in |
 | Freeze | A beat of stillness a hair before contact | Darkened frame, only the weapon lit, zero shake |
-| Impact | The heaviest moment | Biggest flash, slash across the whole frame, max shake, knockback |
+| Impact | The heaviest moment | Clear contact or blast origin, enemy reaction and physical consequence |
 | Afterglow | Consequence | Pull out: the world split, embers/motes drifting, ground scar |
 | Title | Name the move | Title card + subtitle, hero's closing pose |
 
@@ -66,13 +68,14 @@ the strike moving the same way across the screen. Breaking it reads as a mistake
 
 - Total length: 10–17 s for an ultimate/legendary move; 5–8 s for a normal move (see §8).
   Shot lengths 0.4–2 s; the fastest shots are the strike and the freeze.
-- Place the impact around 75–80% of the duration, leaving 2.5–4 s for afterglow and title.
+- As a starting point for a long move, put impact about three-quarters of the way through.
+  Leave time for the reaction, the changed scene and the title.
 - **Cut on the action.** Shot boundaries land on beats: the plant, the step, the eye ignition, the
   start of the swing, contact. Put the action's key pose 100–300 ms after the cut, not before it.
 - **Anticipation → action → follow-through** for every big motion: a small counter-motion, an
   overshooting main motion (back-ease), then a settle.
-- **Escalate shake and flash** through the move; the impact must exceed everything before it.
-  Keep 0.3–0.5 s of near-silence (zero shake, slowed time) right before contact.
+- **Build toward impact.** Use a brief drop in motion or shake before contact when it gives the
+  blow weight. A 0.3–0.5 s hold is a starting point for a long move. Judge it at playback speed.
 - Hit-stop: slow time to ~10% for ~250 ms after contact so the blow registers.
 - Bars (letterbox) widen for close-ups and from the freeze through the impact; narrow for wides.
 - Title card appears after the impact has settled (≈1.5–2.5 s after), and fades out at the end.
@@ -125,7 +128,7 @@ These are prompts for your own design, not fixed answers.
 |---|---|---|---|---|
 | Sword / blade | Raise overhead, blade grows | Overhead or diagonal slash | Edge a hair above target | Frame-wide slash line, world split |
 | Spear / lance | Draw back low, body coils | Long thrust with tracking dolly | Tip one length short | Piercing beam, ring shockwave through target |
-| Hammer / club | Lift high, ground cracks under feet | Vertical slam | Head above target, debris floating | Crater, radial cracks, upward debris |
+| Hammer / club | Sink under the weight, pull the grip across the body | Arc into the ground or foe | Striking face just clear of contact | Debris from the contact point, crater or shifted ground |
 | Bow | Draw to full, string light | Release; follow the arrow | Arrow tip before target | Star-burst pierce, trail persisting |
 | Instrument / drum | Rhythm builds beat by beat | Final strike on the beat | Beat held silent | Shock rings timed to beats |
 | Scythe / reaping | Wide back-swing, eclipse/shadow forms | Horizontal sweep | Blade curve framing target | Crescent cut, darkness lifting |

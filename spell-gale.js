@@ -4,7 +4,8 @@ const DIVE=8200, HOLD=8900, HIT=9250;
 const warp=heldClock(HOLD,HIT), contact=warp(HIT);
 const keys=[[0,0,0,.25],[1100,0,0,.25],[1650,-3,4,-.3],[2700,-5,-39,-.35],
   [4450,-8,-60,-.28],[5750,-8,-60,.42],[7050,-12,-64,.65],[DIVE,-13,-63,1.98],
-  [HOLD,117,-15,1.94],[HIT,117,-15,1.94],[HIT+100,138,-9,1.94],[10100,151,-6,1.94],[11900,127,0,.46]];
+  [HOLD,117,-15,1.94],[HIT-1,117,-15,1.94],[HIT,130,-12,1.94],
+  [HIT+100,138,-9,1.94],[10100,151,-6,1.94],[11900,127,0,.46]];
 function flyer(t,reduced) {
   const p=heroKeys(keys,t);
   if(reduced)p.dy*=.72+ .28*smooth(t,DIVE,HOLD);
@@ -31,19 +32,41 @@ function feather(c,x,y,length,width,angle,opacity=1) {
   c.restore();
 }
 
-function wings(c, t, reduced, art) {
+// Long flights build the silhouette. Short coverts overlap the quills at the shoulder.
+function wing(c, fold, shade) {
+  const palettes = shade
+    ? ['#253e53','#496477','#79949a','#c3ccc0']
+    : ['#26384c','#537282','#91aaa8','#e7debf'];
+  for (let i = 10; i >= 0; i--) {
+    const baseX = 5 + i * 5, baseY = -i * 1.45;
+    const tipX = 15 + i * 6.9 + 4 * rand(i, 36), tipY = 21 - i * 1.4 - i*i*.25 - i * fold;
+    const taper = 3 + rand(i, 37) * 5;
+    polygon(c, palettes[0], [baseX-6,baseY-6, baseX+7,baseY-10, tipX-taper,tipY-6,
+      tipX+7,tipY-2, tipX,tipY+3, tipX-11,tipY+4, baseX-2,baseY+4]);
+    polygon(c, palettes[i%3 ? 1 : 2], [baseX-3,baseY-4, baseX+7,baseY-8,
+      tipX-5,tipY-5, tipX+5,tipY-2, tipX-9,tipY+1, baseX,baseY+2]);
+    if (i % 3 !== 1) stroke(c, palettes[3], .65, [baseX+2,baseY-3, tipX-8,tipY-3, tipX+2,tipY-2]);
+  }
+  polygon(c, palettes[1], [-3,2, 9,-9, 25,-16, 45,-21, 61,-25, 50,-15, 26,-8, 16,3, 6,8]);
+  polygon(c, palettes[3], [2,-2, 11,-9, 25,-16, 45,-21, 61,-25, 48,-18, 23,-11, 11,-3]);
+  for (let i = 0; i < 6; i++) {
+    const x = 8 + i * 7, y = -4 - i * 2.3;
+    polygon(c, palettes[2], [x-4,y, x+4,y-5, x+15,y-4, x+8,y+4, x+2,y+5]);
+  }
+}
+
+function wings(c, t, w, reduced) {
   const p = flyer(t, reduced);
   const spread = smooth(t, 1100, 4300), fold = smooth(t, 7050, DIVE);
   const settle = smooth(t, HIT + 250, 11200);
-  const width = 98 * spread * (1 - .29 * fold), height = width * art.height / art.width;
-  const beat = reduced ? 0 : Math.sin(t / 490) * .14 * spread * (1 - fold);
+  const beat = reduced ? 0 : Math.sin(w / 490) * .14 * spread * (1 - fold);
   // Rotate the root with the shoulder, so the driver and the wings bank together.
-  c.save(); c.translate(159 + p.dx, 164 + p.dy); c.rotate(p.lean); c.translate(-9, -7);
-  for (const side of [1, -1]) {
+  c.save(); c.translate(159 + Math.round(p.dx), 164 + Math.round(p.dy)); c.rotate(p.lean); c.translate(-10, -8);
+  for (const side of [-1, 1]) {
     c.save(); c.scale(side,1); c.globalAlpha = spread * (1 - settle);
-    c.rotate(-.12 + beat + (side > 0 ? -2.35 : -.35) * fold + .16 * settle);
-    c.scale(1, 1 - .48 * fold + .09 * Math.sin(beat));
-    c.drawImage(art, -2, -height * .62, width, height);
+    c.rotate(-.12 + beat + (side > 0 ? -2.57 : .32) * fold + .16 * settle);
+    c.scale(spread * (1 - .29 * fold), spread * (1 - .39 * fold));
+    wing(c, fold, side > 0);
     c.restore();
   }
   c.restore();
@@ -62,7 +85,14 @@ function airGate(c,x,y,radius,split) {
   c.restore();
 }
 
-function windscape(c,t,w,{reduced,art}) {
+const lanceLength = t => 23 + 24 * smooth(t,4450,7050);
+function lanceTip(t, reduced) {
+  const p = flyer(t,reduced), length = lanceLength(t);
+  return [159 + Math.round(p.dx) + length * Math.sin(p.angle),
+    164 + Math.round(p.dy) - length * Math.cos(p.angle)];
+}
+
+function windscape(c,t,w,{reduced}) {
   const sky=smooth(t,800,2700);
   skyWash(c,'#1d516c','#82b7ac',.84*sky);c.save();c.globalAlpha=sky;
   for(let i=0;i<12;i++){
@@ -77,25 +107,30 @@ function windscape(c,t,w,{reduced,art}) {
     c.quadraticCurveTo(x+size*.64,y-4,x+size,y+2);c.fill();
   }
   const open=smooth(t,4750,6000);
-  if(open) for(let i=0;i<3;i++){
+  if(open) for(const [i, pass] of [8510,8730,HIT].entries()){
     c.globalAlpha=open*(1-smooth(t,HIT+550,11400));
-    const x = 217 + i * 54, p = flyer(t, reduced);
-    const lanceTip = 159 + p.dx + 47 * Math.sin(p.angle);
-    const passage = t < DIVE ? 0 : smooth(lanceTip, x, x + 22);
-    const split = i < 2 ? passage : eases.out(span(w-contact,0,590));
-    airGate(c,x,109+i*26,(19+i*3)*open+5,split);
+    const [x, y] = lanceTip(pass, reduced);
+    const split = i < 2 ? smooth(lanceTip(t, reduced)[0],x,x+17) : eases.out(span(w-contact,0,590));
+    airGate(c,x,y,(19+i*3)*open+5,split);
+  }
+  const swept = eases.out(span(w-contact,0,540));
+  if (swept) {
+    c.globalAlpha = swept * (1 - .32 * smooth(t,10900,12650));
+    polygon(c,'#3e6162',[147,181,230,177,304,175,330+125*swept,171,327+147*swept,185,266,185]);
+    stroke(c,'#b3d1b6',1.2,[152,181,243,178,301,176,330+125*swept,171]);
   }
   c.restore();
-  if (t > 1100 && t < 11200) wings(c,t,reduced,art);
+  if (t > 1100 && t < 11200) wings(c,t,w,reduced);
 }
 
 function front(c,t,w,{reduced}) {
-  const p=flyer(t,reduced),x=159+p.dx,y=164+p.dy;
+  const p=flyer(t,reduced),x=159+Math.round(p.dx),y=164+Math.round(p.dy);
   c.save();c.translate(x,y);c.rotate(p.angle);c.globalAlpha=1-p.weaponOpacity;
-  const length=23+24*smooth(t,4450,7050);
-  stroke(c,'#8e704f',2.3,[0,3,0,-length+6]);
-  polygon(c,'#ffdb94',[0,-length,-3,-length+10,0,-length+8,3,-length+10]);
-  polygon(c,'#fff9d8',[0,-length,0,-length+8,3,-length+10]);
+  const length=lanceLength(t);
+  stroke(c,'#3c3c43',3.4,[0,5,0,-length+6]);
+  stroke(c,'#a48964',.9,[-.6,4,-.6,-length+7]);
+  polygon(c,'#566775',[0,-length,-3,-length+9,-3,-length+12,0,-length+10,3,-length+12,3,-length+9]);
+  polygon(c,'#e7dec0',[0,-length,-3,-length+9,0,-length+10]);
   feather(c,0,-length+13,11,3,-2.45,1-p.weaponOpacity);c.restore();
   if(t>DIVE && t<HIT+650) {
     c.save();const k=smooth(t,DIVE,HOLD)*(1-smooth(w-contact,0,430));
@@ -104,23 +139,23 @@ function front(c,t,w,{reduced}) {
     c.restore();
   }
   if(w<contact)return;
+  const [impactX, impactY] = lanceTip(HIT, reduced);
   for(let i=0;i<(reduced?7:19);i++){
     const k=span(w-contact,0,1100+rand(i,32)*600),side=i%2?1:-1;
-    feather(c,331+side*k*(15+rand(i,33)*69),161-Math.sin(k*Math.PI)*(14+rand(i,34)*63)+19*k,
+    feather(c,impactX+side*k*(15+rand(i,33)*69),impactY-Math.sin(k*Math.PI)*(14+rand(i,34)*63)+19*k,
       5+rand(i,35)*5,2,i+side*k*2,1-k);
   }
 }
 
 export const galePlan={
-  art: new URL('./assets/spells/gale-wing.webp', import.meta.url).href,
   duration:12650,impact:HIT,titleAt:11150,attack:[1100,10100],warp,subtitle:'— 白羽借風 · 一槍破陣 —',
   shots:[
     [0,'羽銘 · 槍側流金',[160,146,5,-.04],[163,149,5.8,.025],'smooth'],
     [1100,'拔地 · 長風托舉',[153,153,2.9,-.09],[149,110,1.8,-.04],'out'],
     [2700,'展翼 · 雙帆向天',[161,109,1.55,-.05],[174,93,1.48,.025],'smooth'],
-    [4450,'掠羽 · 金脈相連',[146,89,2.8,.02],[211,65,2.65,.055],'smooth'],
+    [4450,'掠羽 · 金脈相連',[152,111,2.5,.02],[190,105,2.45,.055],'smooth'],
     [5750,'雲門 · 三陣一線',[223,103,1.2,-.02],[244,115,1.28,0],'smooth'],
-    [7050,'折翼 · 順風俯身',[148,100,3.3,-.08],[159,101,2.7,-.04],'out'],
+    [7050,'折翼 · 順風俯身',[148,104,2.55,-.08],[163,103,2.13,-.04],'out'],
     [DIVE,'破空 · 逐門疾降',[161,108,1.85,-.05],[301,150,2.1,.02],'smooth'],
     [HOLD,'斂風 · 關前寸鋒',[311,157,3.1,0],[314,158,3.18,0],'out'],
     [HIT,'破陣 · 羽貫雲關',[328,157,2.5,.045],[351,149,2.18,-.015],'out'],
