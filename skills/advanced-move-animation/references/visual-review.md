@@ -84,11 +84,14 @@ instead of leaving a half-framed slab on screen.
 the revised shot at actual display size. A forged head can show a broad dark iron face, a
 chipped cold edge, then a narrow warm reflection facing the furnace. Light leather and
 bronze differently from the metal they touch. Repeated bright borders around every piece
-can make a heavy object look like a row of buttons. For intricate fur, layered feathers
-or worked metal, a small original transparent sprite can carry the surface detail. Size
-it against the actors, light it from the scene and animate its parts about their joints.
+can make a heavy object look like a row of buttons. When Forest Judgment is the reference,
+build the large prop at the actors' pixel scale. Let its silhouette change with the cast:
+iron can collect around the grip, acquire a striking face, then carry an ember down into
+the ground. Sample the wide shot after contact and check that the changed ground is still legible.
 
 **Watch the transfer of weight.** Play a few frames on either side of a release or cut.
+For a wielded giant weapon, watch the hand, weapon head and target together through at
+least part of the swing. In a close shot the hand can leave frame once that motion reads.
 Trace the bowstring from notch to arrow, the folded wing from shoulder to tip, or the
 chain from its attachment to the falling load. On a continuous pullback, begin from the
 preceding camera position. Check that the focal object, its shadow and the hit reaction

@@ -1,277 +1,415 @@
-import { FOE, span, eases, rand, glow, spark, polygon, oval } from './spell-fx.js';
+import { FOE, span, eases, smooth, heroKeys, recoil, heldClock, rand, polygon, glow } from './spell-fx.js';
 
-const TAP = 1450, RIVER = 2100, CAST = 4550, LIFT = 6200, COMMAND = 7600;
-const RELEASE = 8850, DROP = 9450, HOLD = 10080, HIT = 10450, END = 14000;
-const AXIS = 305, GROUND = FOE[1], GOLD = '#ffce78', HOT = '#fff1ab';
-const smooth = (t, a, b) => eases.smooth(span(t, a, b));
-const out = (t, a, b) => eases.out(span(t, a, b));
-
-// Hold just before contact. Keep the post-contact clock continuous as it returns to full speed.
-function forgeTime(t) {
-  return Math.min(t, HOLD) + .025 * Math.max(0, Math.min(t, HIT) - HOLD)
-    + .12 * Math.max(0, Math.min(t - HIT, 240)) + Math.max(0, t - HIT - 240);
-}
-const contactTime = forgeTime(HIT);
+const KINDLE = 1450,
+  POUR = 3450,
+  WELD = 5350,
+  HOIST = 7000,
+  SWING = 9440;
+const HOLD = 10080,
+  HIT = 10450,
+  END = 14000;
+const clock = heldClock(HOLD, HIT);
+const contact = clock(HIT);
+const ember = '#ff9b41',
+  core = '#ffdd91',
+  iron = '#242734';
+const keys = [
+  [0, 0, 0, 0.46],
+  [950, -2, 0, -0.55],
+  [KINDLE, 3, 3, 2.12],
+  [2450, 3, 3, 2.12],
+  [POUR, -1, 1, 0.76],
+  [WELD, -3, 2, 0.88],
+  [HOIST, -5, 4, 0.94],
+  [8340, -9, 1, -0.53],
+  [8980, -7, 3, -0.65],
+  [SWING, -7, 4, -0.68],
+  [HOLD, 19, 1, 1.26],
+  [HIT - 1, 19, 1, 1.26],
+  [HIT, 21, 3, 1.4],
+  [HIT + 160, 22, 4, 1.49],
+  [11500, 22, 4, 1.49],
+  [12800, 8, 2, 1.03],
+  [END, 4, 0, 0.48]
+];
 
 function pose(t, w, reduced) {
-  const wind = smooth(t, 1100, 1300), tap = smooth(t, 1300, TAP);
-  const rest = smooth(t, TAP + 100, RIVER), lift = smooth(t, COMMAND, RELEASE);
-  const command = smooth(t, RELEASE, DROP), recover = smooth(t, HIT + 650, END - 1200);
-  const fear = smooth(t, 3450, 4250);
-  const knock = span(w, contactTime, contactTime + 720);
-  const recoil = (reduced ? .35 : 1) * eases.out(knock);
-  return {
-    hero: { dx: -3 * wind + 6 * tap - 3 * rest - 4 * lift + 10 * command - 6 * recover,
-      dy: -2 * wind + 4 * tap - 2 * rest - 4 * lift + 7 * command - 3 * recover,
-      angle: .24 - .8 * wind + 2.04 * tap - .95 * rest - 1.18 * lift + 2.35 * command - 1.46 * recover },
-    foe: { dx: 4 * fear + recoil * (42 - 10 * smooth(w, contactTime + 730, contactTime + 1800)),
-      dy: -(reduced ? 6 : 26) * Math.sin(Math.PI * knock),
-      tilt: -.13 * fear + recoil * (.56 - .32 * smooth(w, contactTime + 730, contactTime + 1600)) }
-  };
-}
-
-// The same split diamond is engraved on the seal, the hanging die and the ground.
-function brand(c, x, y, scale, flat = 1) {
-  c.save(); c.translate(x, y); c.scale(scale, scale * flat);
-  polygon(c, '#612528', [0,-9, 9,0, 0,10, -9,0]);
-  polygon(c, HOT, [-6,0, 0,-7, 6,0, 3,0, 0,-3, -3,0]);
-  polygon(c, '#ff8b42', [-5,2, -2,2, 0,5, 2,2, 5,2, 0,8]);
-  c.restore();
-}
-
-// Static basalt ridges leave a valley below the furnace. Reuse the vertices on each frame.
-const basalt = [0, 1].map(layer => {
-  const ridge = [];
-  for (let i = 0; i <= 50; i++) {
-    const x = -380 + i * 26;
-    const valley = 28 * Math.exp(-((x - AXIS) ** 2) / 6200);
-    const y = 108 + layer * 26 + valley + rand(i, layer + 90) * 21 + 10 * Math.sin(i * .75);
-    ridge.push(x, y, x + 10, y + 2);
+  const hero = heroKeys(keys, t);
+  // Accelerate out of the backswing, with the leading face still clear at the hold.
+  if (t >= SWING && t < HOLD) {
+    const k = eases.in(span(t, SWING, HOLD));
+    hero.angle = -0.68 + 1.94 * k;
+    hero.dx = -7 + 26 * k;
+    hero.dy = 4 - 3 * k;
   }
-  return [...ridge, 940, 181, -380, 181];
+  hero.lean =
+    0.18 * smooth(t, 850, KINDLE) -
+    0.34 * smooth(t, HOIST, 8340) +
+    0.47 * smooth(t, SWING, HOLD) -
+    0.31 * smooth(t, 11500, 12800);
+  hero.weaponOpacity = 1 - smooth(t, 2600, POUR) + smooth(t, 11900, 12900);
+  return { hero, foe: recoil(w - contact, smooth(t, WELD, HOIST), 42, 24, reduced) };
+}
+
+// Layered columns flank the furnace throat. The blow shears its two banks apart.
+const cliffs = Array.from({ length: 52 }, (_, i) => {
+  const x = i * 15 - 160;
+  const distance = Math.abs(x - 333);
+  return { x, height: 34 + Math.min(130, distance * 0.72) + 45 * rand(i, 2), width: 13 + Math.floor(rand(i, 3) * 12) };
 });
-
-function furnace(c, t, w, reduced) {
-  const night = smooth(t, 300, RIVER + 800);
-  const heat = smooth(t, RIVER, CAST + 650);
+function foundry(c, t, w, reduced) {
+  const lit = smooth(t, KINDLE, POUR + 700);
+  if (!lit) return;
+  const fault = eases.out(span(w - contact, 0, 1050));
   c.save();
-  c.globalAlpha = .82 * night;
-  const sky = c.createLinearGradient(0, -130, 0, 182);
-  sky.addColorStop(0, '#161525'); sky.addColorStop(.62, '#4a2434'); sky.addColorStop(1, '#b95139');
-  c.fillStyle = sky; c.fillRect(-900, -1000, 2200, 2000);
-  c.restore();
-  if (heat === 0) return;
-  const sunY = reduced ? 69 : 45;
-  c.save();
-  glow(c, AXIS, sunY, 154, '#ff803e', .42 * heat);
-  c.globalAlpha = heat;
-  const disc = c.createLinearGradient(0, sunY - 62, 0, sunY + 62);
-  disc.addColorStop(0, '#ffecaa'); disc.addColorStop(.56, '#ee935d'); disc.addColorStop(1, '#aa4844');
-  oval(c, AXIS, sunY, 62, 62, disc);
-  // Convection curls follow the rim of the open furnace. Break the arcs into unequal lengths.
-  c.save(); c.translate(AXIS, sunY);
-  for (let i = 0; i < 7; i++) {
-    const r = 64 + (i % 3) * 2.5, a = i * .98 + (reduced ? 0 : w * .00007);
-    c.beginPath(); c.strokeStyle = i % 2 ? '#de7950' : '#ffb66b';
-    c.lineWidth = .6 + rand(i, 12) * 1.4;
-    c.arc(0, 0, r, a, a + .19 + .63 * rand(i, 13)); c.stroke();
-  }
-  c.restore();
-  basalt.forEach((ridge, layer) => polygon(c, layer ? '#482b38' : '#884d4b', ridge));
-  c.restore();
-
-  c.save();
-  for (let i = 0; i < (reduced ? 9 : 34); i++) {
-    const p = (rand(i, 8) + w / (2300 + 1900 * rand(i, 9))) % 1;
-    const x = 62 + rand(i, 10) * 424 + 6 * Math.sin(i + p * 6);
-    c.globalAlpha = heat * .8 * Math.sin(Math.PI * p);
-    c.fillStyle = i % 3 ? GOLD : '#ffe399';
-    c.fillRect(x, GROUND - p * (88 + 98 * rand(i, 11)), 1.2, 1.8);
-  }
-  c.restore();
-}
-
-const river = [[165,181],[182,179],[201,183],[211,181],[228,186],[243,180],[266,184],[282,177],[307,180],[323,178],[335,179]];
-function ironRiver(c, t) {
-  if (t < RIVER) return;
-  const p = span(t, RIVER, 3620) * (river.length - 1);
-  c.save(); c.lineJoin = 'bevel';
-  for (const [width, color] of [[5, '#7e3231'], [2.5, '#ff823a'], [.8, HOT]]) {
-    c.strokeStyle = color; c.lineWidth = width; c.beginPath(); c.moveTo(...river[0]);
-    for (let i = 1; i < river.length && i - 1 < p; i++) {
-      const k = Math.min(1, p - i + 1), [x, y] = river[i - 1];
-      c.lineTo(x + (river[i][0] - x) * k, y + (river[i][1] - y) * k);
+  const sky = c.createLinearGradient(0, -130, 0, 195);
+  sky.addColorStop(0, '#101420');
+  sky.addColorStop(0.46, '#292432');
+  sky.addColorStop(0.77, '#6b3331');
+  sky.addColorStop(1, '#d77539');
+  c.globalAlpha = lit;
+  c.fillStyle = sky;
+  c.fillRect(-850, -850, 2100, 1040);
+  glow(c, 332, 113, 114, '#ff782e', 0.44 * lit);
+  c.globalAlpha = lit;
+  for (let i = 0; i < cliffs.length; i++) {
+    const { x, height, width } = cliffs[i],
+      side = x < 333 ? -1 : 1;
+    const distance = Math.abs(x - 333);
+    const split = Math.max(0, 1 - distance / 200) * fault;
+    const edge = Math.round(x + side * 23 * split),
+      top = Math.round(183 - height + 34 * split);
+    const bevel = Math.round(width * 0.32);
+    polygon(c, '#41303a', [edge, top + 6, edge + bevel, top, edge + width, top - 2, edge + width, 184, edge, 184]);
+    polygon(c, i % 3 ? '#272732' : '#302932', [
+      edge + bevel,
+      top + 4,
+      edge + width,
+      top - 2,
+      edge + width,
+      184,
+      edge + bevel,
+      184
+    ]);
+    // Horizontal joints and sloping fracture planes break up the column faces.
+    const shoulder = top + 19 + 37 * rand(i, 9);
+    polygon(c, i % 3 ? '#3c323d' : '#473641', [
+      edge + bevel,
+      shoulder,
+      edge + width,
+      shoulder - 9,
+      edge + width,
+      shoulder + 5,
+      edge + bevel + 2,
+      shoulder + 17
+    ]);
+    c.fillStyle = side > 0 ? '#a96346' : '#674440';
+    c.fillRect(edge + (side > 0 ? 0 : width - 2), top + 7, 2, Math.min(height * 0.47, 36));
+    // Broken faces catch the same amber light as the weapon.
+    for (let j = 0; j < 4; j++) {
+      c.fillStyle = j === 0 ? '#56404a' : '#332c38';
+      c.fillRect(edge + bevel + 2, top + 11 + j * 18, Math.max(2, width - bevel - j - 4), 1 + (j % 2));
     }
-    c.stroke();
   }
-  // Fractures branch off the channel; the travelling lip lights up as fresh ground opens.
-  for (let i = 2; i < river.length - 1; i += 2) {
-    const k = span(p, i - 1, i + .4);
-    if (!k) continue;
-    const [x, y] = river[i], side = i % 4 ? -1 : 1;
-    polygon(c, '#ca613e', [x-3,y, x+5*k,y+side*4*k, x+14*k,y+side*6*k, x+6*k,y+side*2*k]);
-  }
-  const mark = smooth(t, 3350, CAST);
-  if (mark) {
-    c.globalAlpha = mark;
-    oval(c, 333, GROUND + 2, 27, 4, '#a74f35');
-    oval(c, 333, GROUND + 1, 23, 2.6, '#613237');
-    brand(c, 333, GROUND + 1, .9, .29);
-  }
-  c.restore();
-}
-
-function hammerHeight(t, w, reduced, foeY) {
-  const high = reduced ? 67 : -10;
-  const lift = smooth(t, CAST, LIFT) * 25 + smooth(t, LIFT, COMMAND) * (76 - high);
-  const fall = eases.in(span(t, DROP, HOLD));
-  // The bottom bevel is 22 px below the origin. Leave a sliver of light at the
-  // hold, meet the foe on the flash frame, then drive the die into the floor.
-  const atContact = foeY - 22, held = atContact - 8;
-  const press = out(w, contactTime, contactTime + 27);
-  return 101 - lift + (held - high) * fall + (t >= HIT ? 8 : 0) + (GROUND - 22 - atContact) * press;
-}
-
-function hammer(c, t, w, reduced, foeY, art) {
-  if (t < CAST || t >= HIT + 1900) return;
-  const born = out(t, CAST, CAST + 520), fade = 1 - smooth(t, HIT + 750, HIT + 1900);
-  const gap = 39 * (1 - smooth(t, CAST + 150, LIFT));
-  const y = hammerHeight(t, w, reduced, foeY);
-  // Its shadow contracts and darkens as the die approaches the ground.
-  const near = smooth(y, 30, GROUND - 22);
-  c.save();
-  c.globalAlpha = born * fade * (.12 + near * .48);
-  oval(c, AXIS + 12, GROUND + 2, 69 - 24 * near, 6 - 2 * near, '#241821');
-  c.restore();
-  c.save(); c.translate(AXIS, y);
-  const tension = Math.sin(span(t, LIFT, COMMAND) * Math.PI);
-  const loose = Math.sin(span(t, RELEASE, DROP) * Math.PI);
-  c.rotate(reduced ? 0 : -.055 * tension + .035 * loose);
-  const linkRelease = out(t, RELEASE, DROP + 350);
-  for (const side of [-1, 1]) {
-    c.save(); c.translate(side * (33 + gap + 24 * linkRelease), -14 - 100 * linkRelease);
-    c.rotate(side * (.21 + .34 * linkRelease));
-    c.globalAlpha = born * (1 - linkRelease);
-    for (let i = 0; i < 20; i++) {
-      const half = i % 2 ? 1.6 : 3.5;
-      c.strokeStyle = '#382b35'; c.lineWidth = 2.6; c.beginPath(); c.ellipse(0, -i * 8, half, 5, 0, 0, Math.PI * 2); c.stroke();
-      c.strokeStyle = '#d49773'; c.lineWidth = 1; c.beginPath(); c.ellipse(0, -i * 8, half, 5, 0, Math.PI, Math.PI * 1.75); c.stroke();
-    }
+  // Low banks cross the vertical basalt and break into tilted slabs at impact.
+  for (let i = 0; i < 30; i++) {
+    const x = i * 24 - 100,
+      side = x < 333 ? -1 : 1;
+    const falloff = Math.min(1, Math.abs(x - 333) / 130);
+    const shift = side * fault * (1 - falloff) * 29;
+    const top = 183 - (18 + rand(i, 13) * 27) * falloff;
+    c.save();
+    c.translate(x + shift, top + fault * (1 - falloff) * 14);
+    c.rotate(side * fault * (1 - falloff) * 0.2);
+    polygon(c, '#23232e', [-4, 11, 2, 1, 17, -4, 32, -1, 29, 41, -4, 41]);
+    polygon(c, '#574049', [-4, 11, 2, 1, 17, -4, 32, -1, 20, 2, 7, 4]);
+    polygon(c, '#35303c', [7, 4, 20, 2, 13, 7, 9, 19, 6, 21]);
     c.restore();
   }
-  // Underside radiance melts away before the metal outline, including at impact.
-  glow(c, 0, 13, 54, '#ff763a', born * fade * .47);
-  c.globalAlpha = born * fade;
-  if (t >= DROP && t < HOLD && !reduced) {
-    const trail = span(t, DROP, HOLD) ** 2;
-    for (const x of [-40,-30,19,41]) {
-      polygon(c, '#c5835d', [x-1,-7, x,-11-(22+Math.abs(x))*trail, x+1,-6]);
-    }
+  const mouth = 5 + 13 * fault;
+  polygon(c, '#7c3835', [332 - mouth, 119, 331, 105, 335 + mouth, 101, 333 + mouth, 142, 331 + mouth, 177, 323 - mouth, 186]);
+  polygon(c, '#d36332', [331 - mouth * 0.55, 121, 334 + mouth * 0.5, 108, 331 + mouth * 0.46, 180, 327 - mouth * 0.8, 185]);
+  for (let i = 0; i < (reduced ? 7 : 20); i++) {
+    const y = 120 + ((w / (9 + (i % 5)) + rand(i, 17) * 63) % 62);
+    c.fillStyle = i % 4 ? ember : core;
+    c.fillRect(331 + (rand(i, 16) - 0.5) * mouth - (2 * (y - 95)) / 87, y, 1 + (i % 2), 4 + (i % 6));
   }
-  // Separate at the two sockets during casting; draw as one sprite once fused.
-  const width = 116, height = width * art.height / art.width;
-  const top = 22 - height;
-  if (gap > .02) {
-    const left = Math.round(art.width * .402), right = Math.round(art.width * .598);
-    for (const [a, b, offset] of [[0, left, -gap], [left, right, 0], [right, art.width, gap]]) {
-      c.drawImage(art, a, 0, b - a, art.height, -width / 2 + width * a / art.width + offset,
-        top, width * (b - a) / art.width, height);
-    }
-  } else {
-    c.drawImage(art, -width / 2, top, width, height);
+  const floor = c.createLinearGradient(0, 178, 0, 225);
+  floor.addColorStop(0, '#352d34');
+  floor.addColorStop(1, '#171a26');
+  c.fillStyle = floor;
+  c.fillRect(-850, 182, 2100, 850);
+  for (let i = 0; i < 85; i++) {
+    const x = rand(i, 30) * 640 - 72,
+      y = 184 + rand(i, 31) * 44;
+    c.fillStyle = i % 5 ? '#302932' : '#5e4542';
+    c.fillRect(x, y, 2 + rand(i, 32) * 11, 1);
+  }
+  const bed = 2 + 17 * fault;
+  polygon(c, '#793a36', [
+    333,
+    178,
+    348 + bed,
+    181,
+    334 + bed,
+    187,
+    347 + bed,
+    193,
+    317,
+    209 + bed,
+    328,
+    196,
+    311 - bed,
+    189,
+    329,
+    184
+  ]);
+  polygon(c, ember, [
+    333,
+    179,
+    339 + bed,
+    181,
+    330 + bed,
+    187,
+    338 + bed,
+    193,
+    319,
+    201 + bed,
+    333,
+    194,
+    319 - bed * 0.4,
+    188,
+    333,
+    184
+  ]);
+  c.restore();
+}
+
+function embers(c, t, w, reduced) {
+  const heat = smooth(t, KINDLE, POUR);
+  if (!heat) return;
+  c.save();
+  for (let i = 0; i < (reduced ? 12 : 42); i++) {
+    const k = (w / (1300 + rand(i, 40) * 2200) + rand(i, 41)) % 1;
+    const x = 95 + rand(i, 42) * 335 + 8 * Math.sin(i + k * 5);
+    c.globalAlpha = heat * Math.sin(Math.PI * k) * 0.8;
+    c.fillStyle = i % 4 ? ember : core;
+    c.fillRect(Math.round(x), Math.round(180 - k * (50 + rand(i, 43) * 140)), 1, 1 + (i % 3));
   }
   c.restore();
 }
 
-function groundStrike(c, t, w, reduced) {
+// All geometry is in grip space. The rear peen, wedged socket and heavy striking
+// face have distinct profiles even when the hot seams cool to black.
+function hammer(c, t, hero, reduced) {
+  const alpha = 1 - hero.weaponOpacity;
+  if (alpha <= 0) return;
+  const lift = smooth(t, WELD, HOIST) * (1 - smooth(hero.angle, 0.72, 1.24));
+  const length = 20 + 132 * smooth(t, POUR, HOIST) - (reduced ? 55 * lift : 0);
+  const mass = 0.28 + 0.72 * smooth(t, POUR, HOIST);
+  const loose = 1 - smooth(t, POUR + 260, WELD + 840);
+  c.save();
+  c.globalAlpha = alpha;
+  c.translate(159 + Math.round(hero.dx), 164 + Math.round(hero.dy));
+  c.rotate(hero.angle);
+  // Tapered haft, leather grip, iron lugs and a light picked up along one edge.
+  polygon(c, '#171b27', [
+    -3,
+    7,
+    -4,
+    -length * 0.42,
+    -5,
+    -length + 6,
+    -7,
+    -length - 1,
+    6,
+    -length - 1,
+    4,
+    -length * 0.42,
+    3,
+    7,
+    1,
+    10,
+    -2,
+    10
+  ]);
+  polygon(c, '#625257', [-1, 3, -2, -length, 1, -length, 1, 4]);
+  c.fillStyle = '#ad7652';
+  c.fillRect(1, -length + 6, 1, Math.max(2, length - 23));
+  for (let y = 5; y > -19; y -= 4) {
+    polygon(c, '#91654f', [-3, y, 3, y - 2, 3, y, -3, y + 2]);
+  }
+  for (let j = 0; j < 3; j++) {
+    const y = -length + 11 + 5 * j;
+    c.fillStyle = j % 2 ? '#94654b' : '#4c4248';
+    c.fillRect(-4, y, 8, 3);
+  }
+  for (let i = 1; i <= 3; i++) {
+    const y = -length * (0.22 + i * 0.14);
+    polygon(c, '#37343c', [-4, y, 3, y - 2, 3, y + 2, -4, y + 4]);
+    c.fillStyle = '#a08873';
+    c.fillRect(-3, y, 2, 2);
+  }
+  c.translate(0, -length);
+  c.scale(mass, mass);
+  // Each cheek seats on the same growing haft. The nose is a stepped wedge.
+  c.save();
+  c.translate(-21 * loose, -12 * loose);
+  polygon(c, '#171d29', [-42, -11, -24, -14, -9, -13, -4, -8, -4, 8, -16, 10, -22, 4, -32, 1, -42, 2, -46, 6]);
+  polygon(c, '#55505a', [-42, -11, -24, -14, -9, -13, -8, -9, -27, -9, -42, -4, -46, 6]);
+  polygon(c, '#353744', [-41, -4, -25, -9, -10, -9, -9, 4, -19, 5, -26, -1, -41, 0]);
+  polygon(c, '#b27a58', [-40, -10, -25, -13, -15, -12, -27, -10, -40, -7]);
+  c.restore();
+  c.save();
+  c.translate(24 * loose, -7 * loose);
+  polygon(c, '#171b26', [4, -11, 11, -16, 24, -15, 28, -21, 34, -20, 38, -12, 38, 9, 32, 15, 22, 14, 17, 11, 6, 10]);
+  polygon(c, '#767078', [5, -10, 12, -15, 25, -14, 28, -19, 33, -18, 35, -13, 24, -9, 16, -10, 8, -6]);
+  polygon(c, '#3d3d49', [8, -6, 17, -10, 24, -9, 35, -13, 33, 7, 24, 11, 16, 7, 8, 8]);
+  polygon(c, '#282e3b', [14, -3, 21, -7, 30, -7, 28, -4, 21, -3, 19, 4, 15, 5]);
+  polygon(c, '#aca095', [33, -17, 38, -12, 38, 8, 33, 13, 31, 10, 33, 4, 34, -6, 31, -7]);
+  polygon(c, '#615963', [34, -9, 38, -12, 38, 8, 34, 10]);
+  c.fillStyle = core;
+  c.fillRect(35, -11, 2, 3);
+  c.restore();
+  polygon(c, iron, [-11, -13, -6, -18, 2, -19, 10, -13, 9, 9, 4, 15, -4, 15, -9, 9]);
+  polygon(c, '#57505a', [-10, -12, -5, -16, 1, -17, 6, -13, -3, -10, -6, 8, -9, 7]);
+  polygon(c, '#914b37', [-4, -11, 3, -15, 6, -8, 2, -1, 4, 3, -2, 12, -1, 3, -4, 0, -1, -6]);
+  polygon(c, ember, [-2, -10, 2, -13, 2, -7, 0, -2, 2, 1, -1, 6, 0, 1, -2, -1, 0, -7]);
+  c.fillStyle = '#ab8371';
+  c.fillRect(-7, -8, 2, 2);
+  c.fillRect(5, 6, 2, 2);
+  if (!reduced && loose > 0) {
+    for (let i = 0; i < 12; i++) {
+      const k = (t / 430 + rand(i, 64)) % 1;
+      c.fillStyle = i % 2 ? ember : core;
+      c.fillRect((i % 2 ? 1 : -1) * (16 + loose * 49 * (1 - k)), -8 - 26 * (1 - k) + rand(i, 65) * 15, 2, 1);
+    }
+  }
+  c.restore();
+}
+
+// The hot face leaves a tapered arc along its actual path through the wide shot.
+function wake(c, t) {
+  if (t <= SWING || t > HIT) return;
+  const end = Math.min(t, HOLD);
+  const fade = 1 - smooth(t, HOLD, HIT);
+  const outer = [],
+    inner = [];
+  for (let i = 0; i <= 12; i++) {
+    const u = i / 12;
+    const sample = Math.max(SWING, end - (1 - u) * 135);
+    const { hero } = pose(sample, clock(sample), false);
+    const a = hero.angle,
+      x = 159 + hero.dx,
+      y = 164 + hero.dy;
+    const radius = 151,
+      edge = 34;
+    outer.push(x + Math.sin(a) * radius + Math.cos(a) * edge, y - Math.cos(a) * radius + Math.sin(a) * edge);
+    inner.unshift(
+      x + Math.sin(a) * (radius - 9 * u) + Math.cos(a) * edge,
+      y - Math.cos(a) * (radius - 9 * u) + Math.sin(a) * edge
+    );
+  }
+  c.save();
+  c.globalAlpha = 0.52 * fade * span(t, SWING, HOLD);
+  polygon(c, ember, [...outer, ...inner]);
+  c.restore();
+}
+
+function strike(c, t, w, reduced) {
   if (t < HIT) return;
-  const age = w - contactTime, open = out(age, 0, 340);
-  const x = 331, y = GROUND + 3;
+  const age = w - contact,
+    k = eases.out(span(age, 0, 430)),
+    x = FOE[0] + 4,
+    y = 181;
   c.save();
-  oval(c, x, y + 1, 62 * open, 9 * open, '#332534');
-  brand(c, x, y, 3.4 * open, .24);
   for (const side of [-1, 1]) {
-    c.save(); c.translate(x, y); c.scale(side, 1);
-    polygon(c, '#ff8140', [12*open,0, 35*open,-3, 50*open,0, 87*open,-4, 51*open,2, 34*open,0]);
+    c.save();
+    c.translate(x, y);
+    c.scale(side, 1);
+    polygon(c, '#151822', [0, -2, 35 * k, 1, 63 * k, -4, 90 * k, -3, 130 * k, -9, 92 * k, 0, 63 * k, -1, 35 * k, 6, 0, 5]);
+    polygon(c, ember, [0, 0, 35 * k, 2, 63 * k, -3, 89 * k, -2, 130 * k, -9, 90 * k, -1, 63 * k, -2, 35 * k, 4, 0, 3]);
     c.restore();
   }
-  for (let i = 0; i < (reduced ? 12 : 50); i++) {
-    const k = span(age, 0, 530 + rand(i, 44) * 700);
-    if (k === 1) continue;
-    const side = i % 2 ? 1 : -1;
-    const dx = (18 + rand(i, 42) * 115) * k;
-    const h = (10 + rand(i, 43) * 65) * 4 * k * (1 - k);
-    const size = 1.1 + rand(i, 45) * 3.5;
-    c.save(); c.translate(x + side * (10 + dx), y - h);
-    c.rotate(side * k * 4); c.globalAlpha = 1 - k * k;
-    polygon(c, '#523441', [-size,-size, size,-size*.5, size*.5,size, -size,size*.5]);
-    c.fillStyle = GOLD; c.fillRect(-size,-size,size*1.6,1);
+  for (let i = 0; i < (reduced ? 15 : 55); i++) {
+    const p = span(age, 0, 480 + rand(i, 50) * 860);
+    if (p >= 1) continue;
+    const side = i % 2 ? 1 : -1,
+      size = 1 + rand(i, 51) * 4;
+    c.save();
+    c.translate(x + side * (6 + p * (16 + rand(i, 52) * 134)), y - (24 + rand(i, 53) * 83) * 4 * p * (1 - p));
+    c.rotate(side * (i + p * 4));
+    c.globalAlpha = 1 - p * p;
+    c.fillStyle = iron;
+    c.fillRect(-size, -size, size * 2, size * 1.6);
+    c.fillStyle = i % 3 ? ember : core;
+    c.fillRect(-size, -size, size * 1.6, 1);
     c.restore();
   }
   c.restore();
 }
 
-function seal(c, t, w, reduced, art) {
-  const first = 1 - smooth(t, RIVER, RIVER + 450);
-  const echo = smooth(t, COMMAND - 200, COMMAND + 250) * (1 - smooth(t, RELEASE, DROP));
-  if (!first && !echo) return;
-  const raised = smooth(t, COMMAND, RELEASE), heat = out(t, TAP, TAP + 100);
-  const x = 178 - 23 * raised, y = 162 - 36 * raised;
+function ignition(c, t, reduced) {
+  if (t < KINDLE || t > POUR) return;
+  const k = span(t, KINDLE, POUR);
   c.save();
-  glow(c, x, y, 14 + 6 * heat, '#fb833d', .35 * (first + echo));
-  c.globalAlpha = first + echo;
-  c.save(); c.translate(x,y); c.rotate(Math.PI/4);
-  c.beginPath(); c.rect(-6.2,-6.2,12.4,12.4); c.clip(); c.rotate(-Math.PI/4);
-  // Forge the seal into the socket at the heart of the summoned die.
-  c.drawImage(art, art.width*.419, art.height*.64, art.width*.162, art.height*.26, -9,-10,18,21);
-  c.restore();
-  if (t < TAP) spark(c, x-5+8*span(t,0,1100), y-6, 1, GOLD, .8);
-  if (t >= TAP && t < RIVER) {
-    for (let i = 0; i < (reduced ? 5 : 15); i++) {
-      const k = span(w, TAP, RIVER), a = rand(i, 18) * Math.PI * 2;
-      const r = (7 + rand(i, 19) * 23) * k;
-      spark(c, x + r*Math.cos(a), y + r*Math.sin(a) + 12*k*k, .65, GOLD, 1-k);
-    }
+  c.translate(176, 175);
+  for (let i = 0; i < (reduced ? 8 : 22); i++) {
+    const age = Math.min(1, k * (2 + rand(i, 77)));
+    c.globalAlpha = 1 - age;
+    c.fillStyle = i % 3 ? ember : core;
+    c.fillRect((rand(i, 79) - 0.5) * 50 * age, -(5 + rand(i, 78) * 28) * 4 * age * (1 - age), 1, 2);
   }
   c.restore();
 }
 
+const wide = [214, 85, 1.07, 0];
 export const forgePlan = {
-  art: new URL('./assets/spells/forge-hammer.webp', import.meta.url).href,
-  duration: END, impact: HIT, titleAt: 12650, subtitle: '— 一印開爐 · 千鈞落地 —',
-  warp: forgeTime, pose, attack: [1100, HIT + 800],
+  duration: END,
+  impact: HIT,
+  titleAt: 12650,
+  subtitle: '— 鑄百嶺為鎚 · 一擊開山 —',
+  warp: clock,
+  pose,
+  attack: [950, 11900],
   shots: [
-    [0, '爐印 · 炭中一點金', [175,155,4.7,-.05], [173,158,6,.015], 'smooth'],
-    [1100, '叩爐 · 一響開山', [160,152,3.4,-.08], [167,157,3,.04], 'out'],
-    [RIVER, '地脈 · 鐵河東流', [171,164,2.4,.02], [302,161,1.5,0], 'smooth'],
-    [3650, '灼影 · 足下生光', [321,162,2.8,-.04], [335,165,3.6,-.07], 'out'],
-    [CAST, '鑄形 · 三鐵歸膛', [266,109,1.15,0], [287,94,1.38,-.035], 'out'],
-    [LIFT, '懸鎚 · 雙鏈擎天', [287,94,1.38,-.035], [301,-24,1.56,.025], 'smooth'],
-    [COMMAND, '引墜 · 持印如山', [159,148,3.05,-.08], [148,138,3.6,-.11], 'smooth'],
-    [RELEASE, '脫扣 · 赤鐵失重', [296,-42,1.88,.035], [305,-25,2.1,-.035], 'out'],
-    [DROP, '天墜 · 鎚逐其影', [305,-25,2.1,-.035], [316,126,1.85,0], 'in'],
-    [HOLD, '懸息 · 一線未合', [320,143,2.5,.015], [321,143,2.53,.01], 'smooth'],
-    [HIT, '落砧 · 爐心破土', [326,148,2.35,-.025], [346,151,1.85,.02], 'out'],
-    [11250, '餘燼 · 大地留印', [346,151,1.85,.02], [264,120,1.16,0], 'out'],
-    [12650, '終幕 · 熔心天墜', [264,120,1.16,0], [250,122,1.2,0], 'smooth']
+    [0, '起火 · 一鎚叩地', [161, 149, 3.3, -0.03], [164, 154, 3.65, 0], 'smooth'],
+    [KINDLE, '回聲 · 山腹開爐', [164, 154, 3.65, 0], [245, 122, 1.25, 0], 'out'],
+    [POUR, '引鐵 · 火沿柄走', [163, 147, 2.4, 0], [185, 128, 1.9, -0.025], 'smooth'],
+    [WELD, '合鍛 · 鎚頰咬合', [207, 113, 1.8, -0.025], [222, 107, 1.5, 0], 'smooth'],
+    [HOIST, '扛山 · 沉鐵過肩', [220, 102, 1.3, 0], [144, 72, 1.05, -0.035], 'smooth'],
+    [8340, '蓄勢 · 山門一線', [144, 72, 1.05, -0.035], wide, 'smooth'],
+    [SWING, '掄擊 · 一弧越頂', wide, [218, 86, 1.08, 0], 'smooth'],
+    [HOLD, '懸息 · 鎚下留隙', [249, 132, 1.93, 0], [249, 132, 1.95, 0], 'smooth'],
+    [HIT, '落砧 · 山脊錯斷', [249, 132, 1.95, 0], [267, 140, 1.58, 0.015], 'out'],
+    [11450, '餘火 · 斷層見金', [267, 140, 1.58, 0.015], [258, 124, 1.24, 0], 'smooth'],
+    [12650, '終幕 · 熔心天墜', [258, 124, 1.24, 0], [254, 123, 1.19, 0], 'smooth']
   ],
-  close: [[0,RIVER],[3650,CAST],[COMMAND,DROP],[HOLD,HIT+700]],
-  lines: [['v', DROP, HOLD]],
-  flashes: [[TAP,160,.18,'color'], [HIT,180,.36,'#ffcc83']],
+  close: [
+    [0, KINDLE],
+    [POUR, WELD],
+    [HOLD, HIT + 480]
+  ],
+  lines: [],
+  flashes: [
+    [KINDLE, 130, 0.18, '#ffc174'],
+    [HIT, 155, 0.59, '#ffcf88']
+  ],
   shake(t) {
-    if (t >= HIT) return 8 * Math.exp(-(t - HIT) / 200);
+    if (t >= HIT) return 7 * Math.exp(-(t - HIT) / 205);
     if (t >= HOLD) return 0;
-    if (t >= RELEASE) return 1.7 * Math.exp(-(t - RELEASE) / 190);
-    if (t >= LIFT) return 1.35 * Math.exp(-(t - LIFT) / 220);
-    return t < TAP ? 0 : 2 * Math.exp(-(t - TAP) / 160);
+    if (t >= HOIST) return 1.4 * Math.exp(-(t - HOIST) / 190);
+    return t < KINDLE ? 0 : 2.5 * Math.exp(-(t - KINDLE) / 210);
   },
-  back(c, t, w, { reduced, foeY, art }) {
-    furnace(c, t, w, reduced);
-    ironRiver(c, t);
-    hammer(c, t, w, reduced, foeY, art);
+  back(c, t, w, ctx) {
+    const { reduced } = ctx;
+    foundry(c, t, w, reduced);
+    embers(c, t, w, reduced);
+    if (!reduced) wake(c, t);
+    hammer(c, t, (ctx.pose ?? pose(t, w, reduced)).hero, reduced);
   },
-  front(c, t, w, { reduced, art }) {
-    seal(c, t, w, reduced, art);
-    groundStrike(c, t, w, reduced);
+  front(c, t, w, { reduced }) {
+    ignition(c, t, reduced);
+    strike(c, t, w, reduced);
   }
 };
