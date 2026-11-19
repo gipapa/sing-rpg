@@ -80,6 +80,20 @@ fast enough to stay ahead of the crane, use an `out` ease when the camera must a
 transitions transform the shape (shrink the crown onto the weapon, fold the spirit into the blade)
 instead of leaving a half-framed slab on screen.
 
+**Read the material at the closest zoom.** Compare the prop in the reference shot and in
+the revised shot at actual display size. A forged head can show a broad dark iron face, a
+chipped cold edge, then a narrow warm reflection facing the furnace. Light leather and
+bronze differently from the metal they touch. Repeated bright borders around every piece
+can make a heavy object look like a row of buttons. For intricate fur, layered feathers
+or worked metal, a small original transparent sprite can carry the surface detail. Size
+it against the actors, light it from the scene and animate its parts about their joints.
+
+**Watch the transfer of weight.** Play a few frames on either side of a release or cut.
+Trace the bowstring from notch to arrow, the folded wing from shoulder to tip, or the
+chain from its attachment to the falling load. On a continuous pullback, begin from the
+preceding camera position. Check that the focal object, its shadow and the hit reaction
+move in the same direction and that the eye can follow the action into the wider shot.
+
 **Impact: power and readable contact.** Sustained white can erase the hit. A brief white impact
 frame may be intentional; show contact and the foe's reaction around it. For this trident, a
 partial 260 ms / 0.55-alpha flash preserved the action. Treat those values as a local fix, not

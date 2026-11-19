@@ -107,6 +107,7 @@
           <input id="query" class="atlas-only" type="search" placeholder="名稱、屬相或種類" aria-label="搜尋圖鑑" />
         </div>
         <div id="atlas" class="atlas-only"></div>
+        <p id="previewStatus" role="status"></p>
         <div id="legendBook" hidden></div>
         <div class="pager atlas-only">
           <span id="pageCount"></span><button id="prev">上一頁</button><button id="next">下一頁</button>
@@ -354,6 +355,21 @@
       <h2 id="deleteScoreTitle">刪除歌譜</h2>
       <p>將從本機歌本移除「<b id="deleteScoreName"></b>」。</p>
       <div class="controls"><button type="button" id="cancelDeleteScore">取消</button><button type="button" id="confirmDeleteScore">刪除</button></div>
+    </dialog>
+    <aside id="saveWarning" hidden>
+      <span role="status" id="saveWarningText"></span>
+      <button type="button" id="retrySave">重試儲存</button>
+    </aside>
+    <dialog id="writerWaiting" aria-labelledby="writerTitle">
+      <h2 id="writerTitle">另一個分頁正在遊玩</h2>
+      <p>關閉該分頁後，這裡會自動接續最新進度。</p>
+      <button type="button" id="waitingSongbook">開啟歌本</button>
+    </dialog>
+    <dialog id="micWaiting" aria-labelledby="micWaitingTitle">
+      <h2 id="micWaitingTitle">正在等待麥克風授權</h2>
+      <p>允許收音後即可出發，也可以這次使用自動攻擊。</p>
+      <button type="button" id="cancelMic">取消出發</button>
+      <button type="button" id="autoInstead">改用自動戰鬥</button>
     </dialog>
     <dialog id="story" aria-labelledby="storyTitle">
       <div id="storyArt">

@@ -7,10 +7,13 @@ import { petalsPlan } from '../spell-petals.js';
 import { forestPlan } from '../spell-forest.js';
 import { forgePlan } from '../spell-forge.js';
 import { tidePlan } from '../spell-tide.js';
-import { spellPlans } from '../spell-plans.js';
+import { loadSpellPlan } from '../spell-plans.js';
 import { drumSpells } from '../drum-spells.js';
 
-const plans = spellPlans;
+import { legends } from '../legends.js';
+
+const spells = [...drumSpells, ...legends.map(legend => legend.spell)];
+const plans = Object.fromEntries(await Promise.all(spells.map(async spell => [spell.id, await loadSpellPlan(spell.id)])));
 
 // Minimal 2D context that rejects the inputs real canvases throw on.
 function mockContext(strictAlpha = false) {
@@ -64,7 +67,7 @@ for (const [id, plan] of Object.entries(plans)) {
       const { cam, shot } = cameraAt(plan, t, reduced);
       assert.ok(cam.every(Number.isFinite), id + ' camera at ' + t);
       assert.ok(shot[1]);
-      const ctx = { color: '#a1dcf2', reduced, spell: { id }, foeY: 163 };
+      const ctx = { color: '#a1dcf2', reduced, spell: { id }, foeY: 163, art: { width: 240, height: 200 } };
       const w = plan.warp ? plan.warp(t) : warp(t, plan.impact);
       // New legendary plans also guard against alphas that real canvases would ignore.
       const strict = id.startsWith('legend-');

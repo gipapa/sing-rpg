@@ -1383,3 +1383,17 @@ body.songbook-battle { --score-panel-width: min(680px, 54vw); }
 .legend-actions button { min-height: 40px; font-size: 13px; }
 .legend-note { color: var(--gold); font-size: 13px; }
 .atlas-only[hidden] { display: none !important; }
+
+#previewStatus:empty { display: none; }
+#saveWarning {
+  position: fixed;
+  inset: auto 12px max(12px, env(safe-area-inset-bottom));
+  z-index: 40;
+  margin: auto;
+  width: fit-content;
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+}

@@ -55,12 +55,9 @@ export function camp(game, persist, previewSpell = () => {}) {
       canvas.getContext('2d').drawImage(bitmap,
         (bitmap.width - size) / 2, (bitmap.height - size) / 2, size, size, 0, 0, 256, 256);
       const image = canvas.toDataURL('image/jpeg', .85);
-      // Verify storage before replacing the current portrait.
-      localStorage.setItem('sing-rpg.eight-realms-v1', JSON.stringify({ ...game, heroPortrait: image }));
       game.heroPortrait = image;
-      persist();
       renderHeroPortrait();
-      $('portraitStatus').textContent = '已儲存，放招時會使用這張圖片。';
+      $('portraitStatus').textContent = await persist() ? '已儲存，放招時會使用這張圖片。' : '已套用大頭照，尚未保存。';
     } catch {
       $('portraitStatus').textContent = '圖片無法讀取或儲存，請換一張較小的圖片再試。';
     } finally {
@@ -95,12 +92,24 @@ export function camp(game, persist, previewSpell = () => {}) {
     $(id).checked = value;
     $(id).onchange = () => { game[id] = $(id).checked; persist(); };
   }
+  let deviceRequest;
+  function cancelMicrophoneList() {
+    deviceRequest?.abort();
+  }
   $('loadMicrophones').onclick = async () => {
+    deviceRequest = new AbortController();
+    const { signal } = deviceRequest;
     $('loadMicrophones').disabled = true;
     $('micDevicesStatus').textContent = '正在讀取麥克風，可能需要授權…';
     const restore = microphoneSession(navigator, 'auto');
+    signal.addEventListener('abort', () => {
+      restore();
+      $('loadMicrophones').disabled = false;
+      $('micDevicesStatus').textContent = '';
+    }, { once: true });
     try {
-      const devices = await listMicrophones();
+      const devices = await listMicrophones(navigator, true, signal);
+      if (signal.aborted) return;
       const selected = source.value;
       // Keep a saved, disconnected input visible so refreshing never silently
       // replaces the user's selection with the system default.
@@ -118,11 +127,15 @@ export function camp(game, persist, previewSpell = () => {}) {
         ? '清單已更新，請選擇手機或車機麥克風。讀取完成後已停止暫時收音。'
         : '瀏覽器沒有提供可指定的麥克風。可使用系統預設，或換瀏覽器重試。';
     } catch (error) {
+      if (signal.aborted) return;
       $('micDevicesStatus').textContent = error.name === 'NotAllowedError'
         ? '麥克風權限未開啟，無法讀取清單。' : error.message;
     } finally {
-      restore();
-      $('loadMicrophones').disabled = false;
+      if (!signal.aborted) {
+        restore();
+        $('loadMicrophones').disabled = false;
+      }
+      if (deviceRequest?.signal === signal) deviceRequest = null;
     }
   };
   for (const [id, value, format] of [
@@ -419,6 +432,7 @@ export function camp(game, persist, previewSpell = () => {}) {
     selected($('legendTab'), legendBook);
     for (const el of document.querySelectorAll('.atlas-only')) el.hidden = legendBook;
     $('legendBook').hidden = !legendBook;
+    $('previewStatus').hidden = !legendBook;
     if (legendBook) {
       selected($('monsterTab'), false);
       selected($('gearTab'), false);
@@ -513,7 +527,7 @@ export function camp(game, persist, previewSpell = () => {}) {
     page++;
     renderBook();
   };
-  $('nameForm').onsubmit = (event) => {
+  $('nameForm').onsubmit = async (event) => {
     event.preventDefault();
     const name = $('heroName').value.trim();
     if (!name) {
@@ -523,8 +537,7 @@ export function camp(game, persist, previewSpell = () => {}) {
     game.name = name;
     renderSummary();
     $('heroName').value = name;
-    persist();
-    $('nameStatus').textContent = '已儲存，吟遊詩人 ' + name + '。';
+    $('nameStatus').textContent = await persist() ? '已儲存，吟遊詩人 ' + name + '。' : '已更改姓名，尚未保存。';
   };
   function openTab(next) {
     tab = next;
@@ -640,6 +653,7 @@ export function camp(game, persist, previewSpell = () => {}) {
       if (next !== 'map') renderMap();
       openTab(next);
     },
+    cancelMicrophoneList,
     story,
     stopStory
   };

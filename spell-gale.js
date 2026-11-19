@@ -8,40 +8,43 @@ const keys=[[0,0,0,.25],[1100,0,0,.25],[1650,-3,4,-.3],[2700,-5,-39,-.35],
 function flyer(t,reduced) {
   const p=heroKeys(keys,t);
   if(reduced)p.dy*=.72+ .28*smooth(t,DIVE,HOLD);
+  const glide = smooth(t, 2200, 4200) * (1 - smooth(t, 7050, DIVE));
+  if (!reduced) p.dy += 2 * glide * Math.sin(t / 490);
+  p.lean = (reduced ? .45 : 1) * (.16 * glide + .87 * smooth(t, 7050, HOLD) * (1 - smooth(t, HIT + 380, 11400)));
+  p.weaponOpacity = 1 - smooth(t, 90, 430) + smooth(t, HIT + 750, 11700);
   return p;
 }
 
 function feather(c,x,y,length,width,angle,opacity=1) {
   c.save();c.translate(x,y);c.rotate(angle);c.globalAlpha=opacity;
-  polygon(c,'#426b76',[0,1,length*.24,-width*.53,length*.67,-width,length,-width*.45,length*.71,width*.32,length*.36,width*.48]);
-  polygon(c,'#e6f4d1',[1,0,length*.3,-width*.63,length*.68,-width*.9,length,-width*.45,length*.54,0]);
-  polygon(c,'#a9d5c3',[length*.3,1,length*.71,-width*.21,length*.91,-width*.33,length*.66,width*.24]);
-  stroke(c,'#f5d793',Math.max(.65,width*.11),[0,0,length*.46,-width*.03,length*.89,-width*.39]);
+  const vane = c.createLinearGradient(0, -width, length * .2, width * .5);
+  vane.addColorStop(0, '#cbd8c1'); vane.addColorStop(.48, '#e2e5cd');
+  vane.addColorStop(.55, '#94afa6'); vane.addColorStop(1, '#536f77');
+  c.fillStyle = vane; c.beginPath(); c.moveTo(0, 0);
+  c.quadraticCurveTo(length * .33, -width * 1.25, length, -width * .48);
+  c.quadraticCurveTo(length * .7, width * .54, length * .21, width * .3);
+  c.closePath(); c.fill();
+  stroke(c, '#c7b995', width * .09, [0,0,length*.53,-width*.22,length*.94,-width*.45]);
+  for (const u of [.45,.68,.79]) {
+    stroke(c, '#728e88', .5, [length*u,-width*.24,length*(u+.1),-width*.57]);
+  }
   c.restore();
 }
 
-function wings(c,t,reduced) {
-  const p=flyer(t,reduced), spread=smooth(t,1300,4500), fold=smooth(t,7050,DIVE);
-  const opacity=1-smooth(t,HIT+250,11200);
-  c.save();c.translate(150+p.dx,158+p.dy);
-  for(const side of [-1,1]){
-    c.save();c.scale(side,1);
-    // A swept upper spar holds a fan of overlapping flight feathers.
-    const lift=(reduced?13:21)*spread, width=67*spread*(1-.64*fold);
-    c.rotate(-.75*fold);
-    polygon(c,'#52847f',[0,0,width*.43,-lift-3,width,-lift-9,width*.63,-lift+9,width*.28,0]);
-    // Long secondary quills hang below the spar, with gaps between their dark tips.
-    for(let i=0;i<5;i++){
-      const u=(i+1)/6;
-      feather(c,width*u*.79,-lift*Math.sin(u*1.6)+1,spread*(12+26*u),4+2*u,
-        .83-u*.66-.36*fold,opacity);
-    }
-    for(let i=6;i>=0;i--){
-      const u=i/7;
-      feather(c,width*u*.9,-lift*Math.sin(u*1.7),9+spread*(25+u*23),3+spread*(5+u*2),
-        -.83+u*.82-.38*fold,opacity);
-    }
-    stroke(c,'#efd198',1.4,[0,0,width*.42,-lift,width*.9,-lift-7]);c.restore();
+function wings(c, t, reduced, art) {
+  const p = flyer(t, reduced);
+  const spread = smooth(t, 1100, 4300), fold = smooth(t, 7050, DIVE);
+  const settle = smooth(t, HIT + 250, 11200);
+  const width = 98 * spread * (1 - .29 * fold), height = width * art.height / art.width;
+  const beat = reduced ? 0 : Math.sin(t / 490) * .14 * spread * (1 - fold);
+  // Rotate the root with the shoulder, so the driver and the wings bank together.
+  c.save(); c.translate(159 + p.dx, 164 + p.dy); c.rotate(p.lean); c.translate(-9, -7);
+  for (const side of [1, -1]) {
+    c.save(); c.scale(side,1); c.globalAlpha = spread * (1 - settle);
+    c.rotate(-.12 + beat + (side > 0 ? -2.35 : -.35) * fold + .16 * settle);
+    c.scale(1, 1 - .48 * fold + .09 * Math.sin(beat));
+    c.drawImage(art, -2, -height * .62, width, height);
+    c.restore();
   }
   c.restore();
 }
@@ -59,14 +62,16 @@ function airGate(c,x,y,radius,split) {
   c.restore();
 }
 
-function windscape(c,t,w,{reduced}) {
+function windscape(c,t,w,{reduced,art}) {
   const sky=smooth(t,800,2700);
   skyWash(c,'#1d516c','#82b7ac',.84*sky);c.save();c.globalAlpha=sky;
   for(let i=0;i<12;i++){
     const x=-105+rand(i,13)*690+(reduced?0:Math.sin(w/3000+i)*6), y=18+rand(i,14)*109;
     const size=21+rand(i,15)*28;
     // Flattened leeward edges give the cloud shelf a consistent wind direction.
-    c.fillStyle=i%2?'#b6d4c6':'#8fb9b9';c.beginPath();c.moveTo(x-size,y+3);
+    const mist = c.createLinearGradient(0,y-11,0,y+4);
+    mist.addColorStop(0, '#d0e2ce6b'); mist.addColorStop(1, '#8baeb100');
+    c.fillStyle=mist;c.beginPath();c.moveTo(x-size,y+3);
     c.quadraticCurveTo(x-size*.5,y-1,x-size*.24,y-5);
     c.bezierCurveTo(x-size*.1,y-14,x+size*.2,y-14,x+size*.32,y-4);
     c.quadraticCurveTo(x+size*.64,y-4,x+size,y+2);c.fill();
@@ -74,20 +79,24 @@ function windscape(c,t,w,{reduced}) {
   const open=smooth(t,4750,6000);
   if(open) for(let i=0;i<3;i++){
     c.globalAlpha=open*(1-smooth(t,HIT+550,11400));
-    airGate(c,217+i*54,109+i*26,(19+i*3)*open+5,eases.out(span(w-contact,0,590)));
+    const x = 217 + i * 54, p = flyer(t, reduced);
+    const lanceTip = 159 + p.dx + 47 * Math.sin(p.angle);
+    const passage = t < DIVE ? 0 : smooth(lanceTip, x, x + 22);
+    const split = i < 2 ? passage : eases.out(span(w-contact,0,590));
+    airGate(c,x,109+i*26,(19+i*3)*open+5,split);
   }
   c.restore();
-  if(t>1100 && t<11200){c.save();c.globalAlpha=1-smooth(t,HIT+250,11200);wings(c,t,reduced);c.restore();}
+  if (t > 1100 && t < 11200) wings(c,t,reduced,art);
 }
 
 function front(c,t,w,{reduced}) {
   const p=flyer(t,reduced),x=159+p.dx,y=164+p.dy;
-  c.save();c.translate(x,y);c.rotate(p.angle);
+  c.save();c.translate(x,y);c.rotate(p.angle);c.globalAlpha=1-p.weaponOpacity;
   const length=23+24*smooth(t,4450,7050);
   stroke(c,'#8e704f',2.3,[0,3,0,-length+6]);
   polygon(c,'#ffdb94',[0,-length,-3,-length+10,0,-length+8,3,-length+10]);
   polygon(c,'#fff9d8',[0,-length,0,-length+8,3,-length+10]);
-  feather(c,0,-length+13,11,3,-2.45);c.restore();
+  feather(c,0,-length+13,11,3,-2.45,1-p.weaponOpacity);c.restore();
   if(t>DIVE && t<HIT+650) {
     c.save();const k=smooth(t,DIVE,HOLD)*(1-smooth(w-contact,0,430));
     c.globalAlpha=k*.76;
@@ -103,6 +112,7 @@ function front(c,t,w,{reduced}) {
 }
 
 export const galePlan={
+  art: new URL('./assets/spells/gale-wing.webp', import.meta.url).href,
   duration:12650,impact:HIT,titleAt:11150,attack:[1100,10100],warp,subtitle:'— 白羽借風 · 一槍破陣 —',
   shots:[
     [0,'羽銘 · 槍側流金',[160,146,5,-.04],[163,149,5.8,.025],'smooth'],
@@ -114,8 +124,8 @@ export const galePlan={
     [DIVE,'破空 · 逐門疾降',[161,108,1.85,-.05],[301,150,2.1,.02],'smooth'],
     [HOLD,'斂風 · 關前寸鋒',[311,157,3.1,0],[314,158,3.18,0],'out'],
     [HIT,'破陣 · 羽貫雲關',[328,157,2.5,.045],[351,149,2.18,-.015],'out'],
-    [10100,'落羽 · 風歸長野',[313,144,1.7,.02],[260,121,1.12,0],'out'],
-    [11150,'終幕 · 蒼穹破陣',[257,122,1.12,0],[254,119,1.18,0],'smooth']],
+    [10100,'落羽 · 風歸長野',[351,149,2.18,-.015],[260,121,1.12,0],'out'],
+    [11150,'終幕 · 蒼穹破陣',[260,121,1.12,0],[254,119,1.18,0],'smooth']],
   close:[[0,1100],[4450,5750],[HOLD,10100]],lines:[['v',1500,2650],['h',DIVE,HOLD]],flashes:[[HIT,180,.30,'#e2ffda']],
   shake:t=>t>=HIT?6.5*Math.exp(-(t-HIT)/200):0,
   pose:(t,w,reduced)=>({hero:flyer(t,reduced),foe:recoil(w-contact,smooth(t,5800,7050),46,18,reduced)}),

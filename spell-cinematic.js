@@ -1,8 +1,6 @@
 import { spellScene } from './scene.js';
 import { FOE, duration, span, eases, rand, warp, cameraAt } from './spell-fx.js';
-import { spellPlans } from './spell-plans.js';
-import { starsPlan } from './spell-stars.js';
-export { spellPlans, hasCinematic } from './spell-plans.js';
+import { loadSpellPlan } from './spell-plans.js';
 
 // Screen-space finishing in a 960×480 frame: lines, flashes, vignette and the title card.
 function drawOverlay(c, t, ctx, plan, whip) {
@@ -86,7 +84,7 @@ export function spellCinematic(dialog) {
   }
   dialog.querySelector('#skipSpell').onclick = () => finish(true);
   dialog.addEventListener('cancel', event => { event.preventDefault(); finish(true); });
-  dialog.addEventListener('close', () => finish(false));
+  dialog.addEventListener('close', () => { if (!dialog.open) finish(false); });
   function paint(now) {
     if (!playback) return;
     const state = playback;
@@ -94,13 +92,13 @@ export function spellCinematic(dialog) {
     if (!document.hidden) state.elapsed += Math.max(0, Math.min(100, now - state.last));
     state.last = now;
     const spell = state.style.spell, foe = state.scene.foe;
-    const plan = spellPlans[spell.id] ?? starsPlan;
+    const plan = state.plan;
     const end = plan.duration ?? duration;
     const t = Math.min(state.elapsed, end), w = plan.warp ? plan.warp(t) : warp(t, plan.impact);
     const pose = plan.pose?.(t, w, reduced.matches);
     const { shot, cam, whip } = cameraAt(plan, t, reduced.matches);
     const ctx = {
-      color: state.style.color, reduced: reduced.matches, spell,
+      color: state.style.color, reduced: reduced.matches, spell, art: state.art,
       foeY: FOE[1] - (foe?.base === 5 ? 5 : 3) * 5, pose
     };
     spellScene(canvas, { ...state.scene, time: w / 1000,
@@ -130,10 +128,31 @@ export function spellCinematic(dialog) {
       dialog.querySelector('#spellTitle').textContent = style.spell.name;
       dialog.querySelector('#spellCaster').textContent = name + '　對　' + (scene.foeName ?? scene.foe?.name ?? '星空');
       dialog.style.setProperty('--spell-color', style.color);
-      return new Promise(resolve => {
-        playback = { style, scene, resolve, elapsed: 0, last: performance.now() };
+      return new Promise((resolve, reject) => {
+        const state = { style, scene, resolve, elapsed: 0 };
+        playback = state;
+        label.textContent = '正在載入分鏡…';
+        progress.style.width = '0%';
+        c.clearRect(0, 0, canvas.width, canvas.height);
         dialog.showModal();
-        frame = requestAnimationFrame(paint);
+        loadSpellPlan(style.spell.id).then(async plan => {
+          if (playback !== state) return;
+          if (plan.art) {
+            const image = new Image();
+            image.src = plan.art;
+            await image.decode();
+            if (playback !== state) return;
+            state.art = image;
+          }
+          state.plan = plan;
+          state.last = performance.now();
+          frame = requestAnimationFrame(paint);
+        }).catch(error => {
+          if (playback !== state) return;
+          playback = null;
+          dialog.close();
+          reject(error);
+        });
       });
     },
     cancel() { finish(false); }

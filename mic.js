@@ -66,22 +66,34 @@ export function microphoneSession(host = navigator, type = 'play-and-record') {
   };
 }
 
+function checkCapture(signal) {
+  if (signal?.aborted) throw new DOMException('已取消收音。', 'AbortError');
+}
+
 // Device labels may be hidden until permission is granted. Temporary permission
 // capture is always stopped, including when enumeration fails.
-export async function listMicrophones(host = navigator, audio = true) {
+export async function listMicrophones(host = navigator, audio = true, signal) {
   const devices = host.mediaDevices;
   if (!devices?.enumerateDevices) throw Error('這個瀏覽器無法列出麥克風，請用 Safari 或 Chrome 重試。');
   let stream;
+  function stopTemporaryInput() {
+    stream?.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+  signal?.addEventListener('abort', stopTemporaryInput, { once: true });
   try {
     let inputs = await devices.enumerateDevices();
+    checkCapture(signal);
     if (!inputs.some(device => device.kind === 'audioinput' && device.deviceId && device.label)) {
       stream = await devices.getUserMedia({ audio });
+      checkCapture(signal);
       inputs = await devices.enumerateDevices();
     }
     return inputs.filter(device => device.kind === 'audioinput' && device.deviceId
       && !['default', 'communications'].includes(device.deviceId));
   } finally {
-    stream?.getTracks().forEach(track => track.stop());
+    signal?.removeEventListener('abort', stopTemporaryInput);
+    stopTemporaryInput();
   }
 }
 
@@ -109,21 +121,23 @@ export async function selectedMicrophone(deviceId, audio, host = navigator) {
 // Never silently fall back to the car/default input when built-in is requested.
 export async function phoneMicrophone(host = navigator, audio = {
   echoCancellation: false, autoGainControl: false, noiseSuppression: false
-}) {
+}, signal) {
   if (host.mediaDevices?.getSupportedConstraints?.().deviceId === false) {
     throw Error('無法確認手機內建麥克風：瀏覽器不支援指定裝置。');
   }
-  const inputs = await listMicrophones(host, audio);
+  const inputs = await listMicrophones(host, audio, signal);
+  checkCapture(signal);
   const phone = inputs.find(device => /\biPhone\b|\bbuilt[ -]?in\b|\binternal\b|內建|内建|內置|内置/i.test(device.label));
   if (!phone) throw Error('無法確認手機內建麥克風，已停止啟動。請讀取麥克風清單後選擇裝置。');
   return selectedMicrophone(phone.deviceId, audio, host);
 }
 
 // Playback stays in Apple's player. Microphone processing stays on the device.
-export async function listen(game = {}) {
+export async function listen(game = {}, signal) {
   const settings = microphoneSettings(game);
   if (settings.source === 'none') return null;
   if(!navigator.mediaDevices?.getUserMedia) throw Error('這個瀏覽器沒有提供麥克風，請用 Safari 或 Chrome 開啟。');
+  checkCapture(signal);
   const Audio = window.AudioContext || window.webkitAudioContext;
   const context = new Audio({ latencyHint: settings.latency });
   let stream;
@@ -132,15 +146,20 @@ export async function listen(game = {}) {
     stream?.getTracks().forEach(track=>track.stop());
     if(context.state!=='closed')context.close().catch(()=>{});
     restoreSession();
+    restoreSession = () => {};
+    signal?.removeEventListener('abort', close);
   }
   try {
     restoreSession = microphoneSession(navigator, settings.session);
+    signal?.addEventListener('abort', close, { once: true });
     await context.resume();
+    checkCapture(signal);
     const audio = { echoCancellation: settings.echoCancellation,
       autoGainControl: settings.autoGainControl, noiseSuppression: settings.noiseSuppression };
-    stream = settings.source === 'phone' ? await phoneMicrophone(navigator, audio)
+    stream = settings.source === 'phone' ? await phoneMicrophone(navigator, audio, signal)
       : settings.source.startsWith('device:') ? await selectedMicrophone(settings.source.slice(7), audio)
         : await navigator.mediaDevices.getUserMedia({ audio });
+    checkCapture(signal);
     const track = stream.getAudioTracks()[0];
     const source=context.createMediaStreamSource(stream);
     connectEcho(context, source, game);

@@ -116,13 +116,18 @@ function buildVista(ice) {
 }
 const vistas={forest:backdrop,ice:buildVista(true),ember:buildVista(false)};
 const characterColors = ['#ba805c', '#75909a', ...realms.map((r) => r.color)];
-function hero(c, x, y, gear, person, attack, step, weaponAngle) {
+function hero(c, x, y, gear, person, attack, step, weaponAngle, weaponOpacity = 1, lean = 0) {
   const [body, head] = gear.map((id) => equipment[id]);
   const legend = legendOf(gear[2]), weapon = legend ? null : equipment[gear[2]];
   const cloak = body?.color || characterColors[person];
   const trim = body ? realms[body.country].color : '#a8b8ab';
   c.save();
   c.translate(Math.round(x), Math.round(y));
+  if (lean) {
+    c.translate(9, -14);
+    c.rotate(lean);
+    c.translate(-9, 14);
+  }
   rect(c, -8, -23, 10, 15, cloak);
   rect(c, -10, -12, 11, 5, cloak);
   rect(c, -12, -9, 9, 3, trim);
@@ -172,7 +177,8 @@ function hero(c, x, y, gear, person, attack, step, weaponAngle) {
   rect(c, 4, -20, 4, 7, trim);
   rect(c, 7, -16, 4, 3, '#d6a07b');
   c.translate(9, -14);
-  c.rotate(weaponAngle ?? (attack ? 1.14 : 0.42));
+  if (weaponOpacity < 1) c.globalAlpha = weaponOpacity;
+  c.rotate((weaponAngle ?? (attack ? 1.14 : 0.42)) - lean);
   if (legend) {
     drawLegendWeapon(c, legend);
     c.restore();
@@ -447,7 +453,8 @@ export function spellScene(canvas, { country, area, gear, foe, time, camera, att
   c.drawImage(land, 0, 0);
   weather(c, area.element, time);
   back?.(c);
-  hero(c, 150 + (heroPose?.dx ?? 0), 178 + (heroPose?.dy ?? 0), gear, 0, attack, 0, heroPose?.angle);
+  hero(c, 150 + (heroPose?.dx ?? 0), 178 + (heroPose?.dy ?? 0), gear, 0, attack, 0,
+    heroPose?.angle, heroPose?.weaponOpacity, heroPose?.lean);
   if (foe) {
     c.save();
     c.translate(330 + (foePose?.dx ?? 0), 178 + (foePose?.dy ?? 0));

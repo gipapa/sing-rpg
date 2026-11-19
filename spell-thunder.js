@@ -1,40 +1,36 @@
-import { span, smooth, eases, rand, oval, polygon, stroke, skyWash, heldClock, heroKeys, recoil } from './spell-fx.js';
+import { span, smooth, eases, rand, oval, stroke, skyWash, heldClock, heroKeys, recoil } from './spell-fx.js';
 
 const FIRST=2350, BEAT=450, CALL=5950, BOLT=8350, HOLD=9050, HIT=9400;
 const warp=heldClock(HOLD,HIT),contact=warp(HIT);
-const keys=[[0,0,0,-.3],[1150,-2,-2,-.6],[1490,1,2,.95],[FIRST,0,0,.13],[CALL,0,0,.13],
-  [7250,-1,0,.05],[BOLT,-4,-4,-.73],[HOLD,-4,-4,-.62],[HIT,-4,-4,-.62],[HIT+100,3,2,1.24],[10800,2,1,.9],[11850,0,0,.12]];
+const keys=[[0,0,0,-.3],[1150,-2,-2,-.6],[1490,1,2,.95],[FIRST,0,0,1.12],[CALL,0,0,1.12],
+  [7250,-1,0,.05],[BOLT,-4,-4,-.73],[HOLD,-4,-4,.68],[HIT-1,-4,-4,.68],[HIT,-4,-4,1.12],[HIT+100,3,2,1.24],[10800,2,1,.9],[11850,0,0,.12]];
 function drummer(t){
   const p=heroKeys(keys,t);
   if(t>=FIRST && t<CALL){
     const beat=(t-FIRST)%BEAT/BEAT;
-    p.angle+=.9*Math.sin(Math.PI*beat*2)*Math.sin(Math.PI*beat);
-    p.dy+=1.8*Math.sin(Math.PI*beat)**2;
+    const lift = beat < .7 ? smooth(beat, 0, .7) : 1 - eases.in(span(beat, .7, 1));
+    p.angle -= 1.46 * lift;
+    p.dy -= 1.8 * lift;
   }
+  p.weaponOpacity = 1 - smooth(t, 90, 430) + smooth(t, 10800, 11900);
   return p;
 }
 const chorus=Array.from({length:8},(_,i)=>[123+i*25,117-74*Math.sin((i+.15)*Math.PI/8)]);
-function drum(c,x,y,r,pulse,opacity) {
-  c.save();c.translate(x,y);c.scale(r,r);c.globalAlpha=opacity;
-  // Bronze hoops surround a deep indigo shell; lacing follows the curvature of the side.
-  polygon(c,'#422e51',[-.97,-.26,.97,-.26,.85,.72,.53,.95,-.54,.95,-.85,.72]);
-  oval(c,0,.68,.86,.31,'#9b6758');
-  for(let i=0;i<6;i++){
-    const xx=-.81+i*.32;
-    stroke(c,'#d5a477',.045,[xx,-.18,xx+.13,.69,xx+.28,-.12]);
-  }
-  oval(c,0,-.21,1,.76,'#765353');
-  oval(c,0,-.26,.96,.71,'#deb67e');
-  oval(c,0,-.27,.83,.58,pulse>.35?'#d4c1e4':'#a692c5');
-  oval(c,0,-.27,.62,.42,'#6b608b');
-  polygon(c,'#f4d395',[-.36,-.26,.09,-.62,-.03,-.34,.37,-.39,-.15,.1,-.02,-.24]);
-  for(let i=0;i<12;i++){
-    const a=i*Math.PI/6;
-    oval(c,Math.cos(a)*.89,-.25+Math.sin(a)*.65,.033,.032,'#fff0b4');
-  }
-  if(pulse>0){
-    c.strokeStyle='#e7d3ff';c.lineWidth=.05;c.globalAlpha=opacity*pulse;
-    c.beginPath();c.ellipse(0,-.25,1.25-.35*pulse,.92-.24*pulse,0,0,2*Math.PI);c.stroke();
+function drum(c, art, x, y, radius, pulse, opacity) {
+  const width = radius * 2, height = width * art.height / art.width;
+  c.save(); c.translate(x, y);
+  c.globalAlpha = opacity;
+  c.scale(1 + .032 * pulse, 1 - .065 * pulse);
+  c.drawImage(art, -radius, -height * .58, width, height);
+  if (pulse > 0) {
+    c.translate(0, -height * .29);
+    c.scale(1, .46);
+    const radiusNow = radius * (.3 + .69 * (1 - pulse));
+    const echo = c.createRadialGradient(0, 0, 0, 0, 0, radiusNow);
+    echo.addColorStop(0, '#c8b7fe00'); echo.addColorStop(.78, '#c8b7fe11');
+    echo.addColorStop(.92, '#eee2ffbb'); echo.addColorStop(1, '#c8b7fe00');
+    c.globalAlpha = opacity * pulse;
+    oval(c, 0, 0, radiusNow, radiusNow, echo);
   }
   c.restore();
 }
@@ -43,7 +39,7 @@ function lightning(c,points,scale=1) {
   stroke(c,'#c9bafd',2.1*scale,points);
   stroke(c,'#fff7d7',.8*scale,points);
 }
-function storm(c,t,w,{reduced}) {
+function storm(c,t,w,{reduced,art}) {
   const cloud=smooth(t,620,2450);
   skyWash(c,'#171a37','#4f4865',cloud*.9);
   c.save();c.globalAlpha=cloud;
@@ -62,29 +58,30 @@ function storm(c,t,w,{reduced}) {
       c.save();c.globalAlpha=lit*fade*(.23+.65*pulse);
       lightning(c,[px,py,(px+x)/2,py-5,x-10,y+5,x,y],.58);c.restore();
     }
-    drum(c,x,y+(1-lit)*11,7+i*.45,reduced?0:pulse,lit*fade);
+    drum(c,art,x,y+(1-lit)*11,7+i*.45,reduced?0:pulse,lit*fade);
   }
   if(t>=CALL){
     const k=eases.out(span(t,CALL,7100)), last=1-smooth(t,HIT+650,11550);
     const pulse=t<HIT?.4*smooth(t,7250,HOLD):1-span(w-contact,0,580);
     c.save();c.globalAlpha=k*last;
-    stroke(c,'#b9a3d6',1.2,[...chorus[7],317,80,325,89,334,80]);
-    drum(c,334,77-(1-k)*45,7+24*k,reduced?0:pulse,k*last);c.restore();
+    const drumY = 77 - (1 - k) * 45;
+    lightning(c, [...chorus[7], 309, 92, 317, 94, 327, drumY - 2, 334, drumY], .38);
+    drum(c,art,334,drumY,7+24*k,reduced?0:pulse,k*last);c.restore();
   }
 }
 
-function discharge(c,t,w,{reduced,foeY}) {
+function discharge(c,t,w,{reduced,foeY,art}) {
   const p=drummer(t);
-  const fade=1-smooth(t,10800,11900);
   const beat=t>=FIRST && t<CALL ? ((t-FIRST)%BEAT)/BEAT : 0;
-  drum(c,169+p.dx,161+p.dy,6,.7*Math.max(0,1-beat*3)*(t>=FIRST && t<CALL),fade);
+  drum(c,art,169+p.dx,161+p.dy,6,.7*Math.max(0,1-beat*3)*(t>=FIRST && t<CALL),1-p.weaponOpacity);
   // A spectral beater keeps the conducting hand legible in unowned-weapon previews.
-  c.save();c.translate(159+p.dx,164+p.dy);c.rotate(p.angle+.05);c.globalAlpha=fade;
+  c.save();c.translate(159+p.dx,164+p.dy);c.rotate(p.angle+.05);c.globalAlpha=1-p.weaponOpacity;
   stroke(c,'#e9bc82',1.8,[0,1,0,-13]);oval(c,0,-14,2.4,3.1,'#dacaff');
   c.restore();
   if(t<BOLT)return;
   const age=w-contact, build=span(t,BOLT,HOLD);
-  const points=[[334,90],[322,110],[337,105],[327,131],[340,125],[334,foeY-9]];
+  const points = [[334,90],[329,97],[331,99],[324,109],[327,108],[323,119],
+    [330,116],[328,124],[331,122],[327,134],[332,131],[330,140],[334,foeY-9]];
   const path=[...points[0]];
   for(let i=1;i<points.length;i++){
     const k=span(build*(points.length-1),i-1,i);
@@ -95,7 +92,8 @@ function discharge(c,t,w,{reduced,foeY}) {
   lightning(c,path,t<HIT?.66:1.24);
   if(build>.62){
     c.globalAlpha*=smooth(build,.62,1);
-    lightning(c,[327,131,317,128,315,136,307,133],.5);
+    lightning(c,[327,134,322,131,320,126,315,124,311,117],.38);
+    lightning(c,[330,116,340,111,339,107,348,103],.27);
   }
   c.restore();
   if(age<0)return;
@@ -114,6 +112,7 @@ function discharge(c,t,w,{reduced,foeY}) {
 }
 
 export const thunderPlan={
+  art: new URL('./assets/spells/storm-drum.webp', import.meta.url).href,
   duration:13100,impact:HIT,titleAt:11600,attack:[1150,10400],warp,subtitle:'— 八方傳響 · 一鼓落雷 —',
   shots:[
     [0,'銅釘 · 掌中雷紋',[160,152,4.9,-.03],[164,157,6,.025],'smooth'],
@@ -125,8 +124,8 @@ export const thunderPlan={
     [BOLT,'引電 · 紫脈下行',[331,85,2.45,.045],[333,144,2.55,.015],'smooth'],
     [HOLD,'止拍 · 雷懸一線',[332,149,3.35,0],[332,151,3.45,0],'out'],
     [HIT,'天奏 · 第九聲雷',[335,152,2.85,-.035],[348,148,2.15,.015],'out'],
-    [10400,'餘震 · 雲鼓歇響',[305,126,1.65,.02],[239,115,1.12,0],'out'],
-    [11600,'終幕 · 九霄雷奏',[239,118,1.12,0],[242,121,1.2,0],'smooth']],
+    [10400,'餘震 · 雲鼓歇響',[348,148,2.15,.015],[239,115,1.12,0],'out'],
+    [11600,'終幕 · 九霄雷奏',[239,115,1.12,0],[242,121,1.2,0],'smooth']],
   close:[[0,1150],[7250,BOLT],[HOLD,10400]],lines:[['v',BOLT,HOLD]],flashes:[[HIT,155,.29,'#ddd0fc']],
   shake:t=>t>=HIT?8*Math.exp(-(t-HIT)/235):t>=FIRST&&t<CALL?.85*Math.exp(-((t-FIRST)%BEAT)/115):0,
   pose:(t,w,reduced)=>({hero:drummer(t),foe:recoil(w-contact,smooth(t,FIRST,CALL),24,31,reduced)}),

@@ -132,35 +132,21 @@ function hammerHeight(t, w, reduced, foeY) {
   return 101 - lift + (held - high) * fall + (t >= HIT ? 8 : 0) + (GROUND - 22 - atContact) * press;
 }
 
-// Two separate iron cheeks fly in and lock around the hot centre. Draw the near
-// planes last so the silhouette, bevels and vents survive the wide reveal.
-function cheek(c, side, gap) {
-  c.save(); c.scale(side, 1); c.translate(gap, 0);
-  polygon(c, '#2a202b', [10,-12, 20,-17, 43,-18, 50,-11, 50,12, 44,22, 15,19, 10,12]);
-  polygon(c, '#bd8471', [11,-12, 21,-16, 42,-17, 47,-12, 42,-8, 18,-7]);
-  const metal = c.createLinearGradient(0, -9, 4, 18);
-  metal.addColorStop(0, '#795b64'); metal.addColorStop(.38, '#4e414e');
-  metal.addColorStop(.78, '#6f4545'); metal.addColorStop(1, '#e97945');
-  polygon(c, metal, [15,-8, 43,-10, 44,12, 39,19, 15,15]);
-  polygon(c, '#b97e68', [44,-9, 48,-12, 48,9, 44,17, 42,13]);
-  polygon(c, '#df7748', [14,11, 38,13, 46,8, 42,18, 16,17]);
-  polygon(c, '#ffcb76', [16,16, 40,17, 44,13, 41,19, 17,18]);
-  // Cut through the dark scale to reveal the molten channels underneath.
-  polygon(c, '#362832', [17,-4, 24,-6, 30,1, 41,-1, 37,5, 27,7]);
-  polygon(c, '#e67d4a', [18,-4, 24,-5, 30,2, 40,0, 36,3, 28,5]);
-  polygon(c, '#ffc77b', [22,-4, 24,-4, 30,2, 37,1, 29,4]);
-  c.fillStyle = '#ecc39a'; c.fillRect(22,-12,14,1);
-  c.fillStyle = '#302733'; c.fillRect(38,-8,3,3);
-  c.fillStyle = '#cb9e84'; c.fillRect(38,-8,2,1);
-  c.restore();
-}
-
-function hammer(c, t, w, reduced, foeY) {
+function hammer(c, t, w, reduced, foeY, art) {
   if (t < CAST || t >= HIT + 1900) return;
   const born = out(t, CAST, CAST + 520), fade = 1 - smooth(t, HIT + 750, HIT + 1900);
   const gap = 39 * (1 - smooth(t, CAST + 150, LIFT));
   const y = hammerHeight(t, w, reduced, foeY);
+  // Its shadow contracts and darkens as the die approaches the ground.
+  const near = smooth(y, 30, GROUND - 22);
+  c.save();
+  c.globalAlpha = born * fade * (.12 + near * .48);
+  oval(c, AXIS + 12, GROUND + 2, 69 - 24 * near, 6 - 2 * near, '#241821');
+  c.restore();
   c.save(); c.translate(AXIS, y);
+  const tension = Math.sin(span(t, LIFT, COMMAND) * Math.PI);
+  const loose = Math.sin(span(t, RELEASE, DROP) * Math.PI);
+  c.rotate(reduced ? 0 : -.055 * tension + .035 * loose);
   const linkRelease = out(t, RELEASE, DROP + 350);
   for (const side of [-1, 1]) {
     c.save(); c.translate(side * (33 + gap + 24 * linkRelease), -14 - 100 * linkRelease);
@@ -182,25 +168,18 @@ function hammer(c, t, w, reduced, foeY) {
       polygon(c, '#c5835d', [x-1,-7, x,-11-(22+Math.abs(x))*trail, x+1,-6]);
     }
   }
-  polygon(c, '#302732', [-5,-12, -6,-47, -9,-52, -7,-58, 7,-58, 9,-52, 5,-47, 5,-12]);
-  polygon(c, '#d49472', [-8,-54, -6,-57, 6,-57, 8,-52, 5,-50, -5,-50]);
-  c.fillStyle = '#9f6859'; c.fillRect(-3,-49,5,35);
-  for (let i = 0; i < 5; i++) {
-    polygon(c, '#d19870', [-5,-46+i*6, 5,-48+i*6, 5,-45+i*6, -5,-43+i*6]);
+  // Separate at the two sockets during casting; draw as one sprite once fused.
+  const width = 116, height = width * art.height / art.width;
+  const top = 22 - height;
+  if (gap > .02) {
+    const left = Math.round(art.width * .402), right = Math.round(art.width * .598);
+    for (const [a, b, offset] of [[0, left, -gap], [left, right, 0], [right, art.width, gap]]) {
+      c.drawImage(art, a, 0, b - a, art.height, -width / 2 + width * a / art.width + offset,
+        top, width * (b - a) / art.width, height);
+    }
+  } else {
+    c.drawImage(art, -width / 2, top, width, height);
   }
-  // The founding plate runs under both halves as their dovetails engage.
-  const fused = smooth(t, CAST + 750, LIFT);
-  if (fused > 0) {
-    c.save(); c.scale(fused, 1);
-    polygon(c, '#3e2931', [-42,12, 42,12, 40,20, 33,22, -34,22, -40,19]);
-    polygon(c, '#ffc275', [-39,16, 40,16, 38,19, 31,20, -35,19]);
-    c.restore();
-  }
-  cheek(c, -1, gap); cheek(c, 1, gap);
-  polygon(c, '#33252e', [-15,-13, -10,-18, 10,-18, 15,-13, 15,14, 10,20, -10,20, -15,14]);
-  polygon(c, '#bf7555', [-13,-12, -9,-16, 9,-16, 13,-12, 10,-9, -10,-9]);
-  polygon(c, '#f09754', [-11,-7, -5,-12, 5,-12, 11,-7, 11,7, 5,14, -5,14, -11,7]);
-  brand(c, 0, 0, 1.35);
   c.restore();
 }
 
@@ -232,7 +211,7 @@ function groundStrike(c, t, w, reduced) {
   c.restore();
 }
 
-function seal(c, t, w, reduced) {
+function seal(c, t, w, reduced, art) {
   const first = 1 - smooth(t, RIVER, RIVER + 450);
   const echo = smooth(t, COMMAND - 200, COMMAND + 250) * (1 - smooth(t, RELEASE, DROP));
   if (!first && !echo) return;
@@ -241,8 +220,11 @@ function seal(c, t, w, reduced) {
   c.save();
   glow(c, x, y, 14 + 6 * heat, '#fb833d', .35 * (first + echo));
   c.globalAlpha = first + echo;
-  polygon(c, '#44323b', [x-9,y-4, x-5,y-9, x+4,y-9, x+9,y-3, x+8,y+5, x+3,y+9, x-5,y+8, x-9,y+4]);
-  brand(c, x, y, .82);
+  c.save(); c.translate(x,y); c.rotate(Math.PI/4);
+  c.beginPath(); c.rect(-6.2,-6.2,12.4,12.4); c.clip(); c.rotate(-Math.PI/4);
+  // Forge the seal into the socket at the heart of the summoned die.
+  c.drawImage(art, art.width*.419, art.height*.64, art.width*.162, art.height*.26, -9,-10,18,21);
+  c.restore();
   if (t < TAP) spark(c, x-5+8*span(t,0,1100), y-6, 1, GOLD, .8);
   if (t >= TAP && t < RIVER) {
     for (let i = 0; i < (reduced ? 5 : 15); i++) {
@@ -255,6 +237,7 @@ function seal(c, t, w, reduced) {
 }
 
 export const forgePlan = {
+  art: new URL('./assets/spells/forge-hammer.webp', import.meta.url).href,
   duration: END, impact: HIT, titleAt: 12650, subtitle: '— 一印開爐 · 千鈞落地 —',
   warp: forgeTime, pose, attack: [1100, HIT + 800],
   shots: [
@@ -263,14 +246,14 @@ export const forgePlan = {
     [RIVER, '地脈 · 鐵河東流', [171,164,2.4,.02], [302,161,1.5,0], 'smooth'],
     [3650, '灼影 · 足下生光', [321,162,2.8,-.04], [335,165,3.6,-.07], 'out'],
     [CAST, '鑄形 · 三鐵歸膛', [266,109,1.15,0], [287,94,1.38,-.035], 'out'],
-    [LIFT, '懸鎚 · 雙鏈擎天', [289,76,1.34,-.035], [299,1,1.55,.035], 'smooth'],
+    [LIFT, '懸鎚 · 雙鏈擎天', [287,94,1.38,-.035], [301,-24,1.56,.025], 'smooth'],
     [COMMAND, '引墜 · 持印如山', [159,148,3.05,-.08], [148,138,3.6,-.11], 'smooth'],
-    [RELEASE, '脫扣 · 赤鐵失重', [290,-19,2.1,.035], [305,-12,2.55,-.035], 'out'],
-    [DROP, '天墜 · 鎚逐其影', [305,-12,1.55,-.035], [316,126,1.85,0], 'in'],
+    [RELEASE, '脫扣 · 赤鐵失重', [296,-42,1.88,.035], [305,-25,2.1,-.035], 'out'],
+    [DROP, '天墜 · 鎚逐其影', [305,-25,2.1,-.035], [316,126,1.85,0], 'in'],
     [HOLD, '懸息 · 一線未合', [320,143,2.5,.015], [321,143,2.53,.01], 'smooth'],
     [HIT, '落砧 · 爐心破土', [326,148,2.35,-.025], [346,151,1.85,.02], 'out'],
-    [11250, '餘燼 · 大地留印', [330,147,1.7,.02], [264,120,1.16,0], 'out'],
-    [12650, '終幕 · 熔心天墜', [255,119,1.14,0], [250,122,1.2,0], 'smooth']
+    [11250, '餘燼 · 大地留印', [346,151,1.85,.02], [264,120,1.16,0], 'out'],
+    [12650, '終幕 · 熔心天墜', [264,120,1.16,0], [250,122,1.2,0], 'smooth']
   ],
   close: [[0,RIVER],[3650,CAST],[COMMAND,DROP],[HOLD,HIT+700]],
   lines: [['v', DROP, HOLD]],
@@ -282,13 +265,13 @@ export const forgePlan = {
     if (t >= LIFT) return 1.35 * Math.exp(-(t - LIFT) / 220);
     return t < TAP ? 0 : 2 * Math.exp(-(t - TAP) / 160);
   },
-  back(c, t, w, { reduced, foeY }) {
+  back(c, t, w, { reduced, foeY, art }) {
     furnace(c, t, w, reduced);
     ironRiver(c, t);
-    hammer(c, t, w, reduced, foeY);
+    hammer(c, t, w, reduced, foeY, art);
   },
-  front(c, t, w, { reduced }) {
-    seal(c, t, w, reduced);
+  front(c, t, w, { reduced, art }) {
+    seal(c, t, w, reduced, art);
     groundStrike(c, t, w, reduced);
   }
 };

@@ -106,6 +106,12 @@ scale of it.
   `rand`. This keeps frames reproducible for tests and lets time warping freeze them.
 - Scale particle counts with a density factor (`reduced ? .35 : 1`).
 
+For a detailed prop in sing-rpg, a plan can expose `art: new URL('./assets/spells/…', import.meta.url).href`.
+The player decodes it before starting the clock and passes the image as `ctx.art` to both layers.
+In `spell-forge.js` the two faces and socket are cropped from one image during assembly, then
+drawn together for the fall. Use one attachment point for each joint and inspect the transition
+in the normal preview and the fixed-camera view.
+
 ## 6. Time: impact, warp, hit-stop and freeze
 
 - Use `t` (real time) for the schedule: shots, camera, beat windows, fades, poses.

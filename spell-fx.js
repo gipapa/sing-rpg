@@ -106,7 +106,10 @@ export function skyWash(c, top, horizon, alpha) {
   c.save(); c.globalAlpha = alpha;
   const sky = c.createLinearGradient(0, -65, 0, 185);
   sky.addColorStop(0, top); sky.addColorStop(1, horizon);
-  c.fillStyle = sky; c.fillRect(-1000, -1000, 2400, 2000); c.restore();
+  c.fillStyle = sky; c.fillRect(-1000, -1000, 2400, 1176);
+  // Let the original lit ground and its pixel texture show through the colour grade.
+  c.globalAlpha = alpha * .56;
+  c.fillRect(-1000, 176, 2400, 824); c.restore();
 }
 
 // The clock holds for the last fraction before contact and resumes continuously after hit-stop.

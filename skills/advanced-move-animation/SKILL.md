@@ -56,7 +56,9 @@ tuning damage numbers, or audio work.
    render a contact sheet of key frames through the actual player when available,
    write down what fails to read, fix it and render again. Do this every time.
    Passing tests says nothing about whether the move looks good.
-   When a move is reported as "not good-looking", start here, before changing the storyboard.
+   When revising a move for visual taste, start here. Capture the preferred move and the current
+   one at matching beats. Judge the featured prop at its largest zoom and watch the handoff from
+   anticipation through contact at playing speed.
 5. **Verify** with [references/testing-and-qa.md](references/testing-and-qa.md): every-frame render
    tests against a strict mock context, storyboard invariants, a smoke run through the real scene,
    and the quality checklist.

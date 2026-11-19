@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const newSource = '{title: 新歌曲}\n{artist: }\n{key: C}\n{capo: 0}\n{tempo: 90}\n{time: 4/4}\n\n{start_of_verse: 主歌}\n|[C]在這裡填入歌詞 |[G]與和弦 |\n{end_of_verse}\n';
 const newId = () => 'user-' + crypto.randomUUID();
 
-export function songbook() {
+export function songbook(onBattleOpen = () => {}) {
   const dialog = $('songbookDialog'), editor = $('songEditor'), viewport = $('scoreViewport');
   let builtins = [], songs = [], settings = new Map(), selected = '', prefs = readingSettings();
   let battle = false, writable = false, busy = false, loaded = false, loading;
@@ -16,7 +16,10 @@ export function songbook() {
   let renderedId = '', renderedSource = '', timeline = { entries: [], duration: 0, estimated: false };
   const clock = scoreClock();
   let editTarget = null, originalSource = '', editPrefs;
-  let lastSelected;
+  let lastSelected, readerActivity = 0;
+  for (const event of ['click', 'keydown', 'wheel', 'change']) {
+    dialog.addEventListener(event, () => { readerActivity++; }, { passive: true });
+  }
   try { lastSelected = localStorage.getItem('sing-rpg.songbook-selected'); } catch { /* Optional. */ }
   const current = () => songs.find(song => song.id === selected);
   const dirty = () => editor.open && $('scoreSource').value !== originalSource;
@@ -70,15 +73,20 @@ export function songbook() {
   function rememberSelected() {
     try { localStorage.setItem('sing-rpg.songbook-selected', selected); } catch { /* Optional. */ }
   }
-  function renderOptions(preferred = selected || lastSelected) {
+  function renderOptions(preferred = selected || lastSelected, preserveReader = false) {
     const groups = [document.createElement('optgroup'), document.createElement('optgroup')];
     groups[0].label = '我的歌本'; groups[1].label = '示範譜';
     for (const song of songs) groups[Number(!!song.builtin)].append(new Option(parseChordPro(song.chordpro).title, song.id));
     $('scoreSong').replaceChildren(...groups.filter(group => group.children.length));
     selected = songs.some(song => song.id === preferred) ? preferred : songs[0]?.id || '';
     $('scoreSong').value = selected;
-    prefs = readingSettings(settings.get(selected));
-    rememberSelected(); render(); controls();
+    const nextPrefs = readingSettings(settings.get(selected));
+    const sameReader = selected === renderedId && current()?.chordpro === renderedSource &&
+      prefs.shift === nextPrefs.shift && prefs.font === nextPrefs.font;
+    prefs = nextPrefs;
+    if (selected) rememberSelected();
+    if (!preserveReader || !sameReader) render();
+    controls();
   }
   async function refresh(preferred) {
     const library = await loadSongLibrary();
@@ -107,22 +115,33 @@ export function songbook() {
   async function load() {
     setBusy(true); status('正在開啟歌本…');
     const messages = [];
-    if (!loaded) {
-      try { builtins = await loadBuiltins(); loaded = true; }
-      catch (error) { messages.push(error.message); }
-    }
-    try { await refresh(selected || lastSelected); }
+    const preferred = selected || lastSelected;
+    const activityAtOpen = readerActivity;
+    // Local songs become usable as soon as IndexedDB responds. Adding demo options
+    // later must leave the current score DOM, playback clock and scroll position alone.
+    const demos = loaded ? null : loadBuiltins().then(entries => {
+      loaded = true;
+      builtins = entries;
+      songs = [...songs.filter(song => !song.builtin), ...builtins];
+      // Restore a previously selected example unless the reader has already used
+      // the provisional local selection while its download was pending.
+      const restoreExample = readerActivity === activityAtOpen && builtins.some(song => song.id === preferred);
+      renderOptions(restoreExample ? preferred : selected || preferred, true);
+    }).catch(error => { messages.push(error.message); });
+    try { await refresh(preferred); }
     catch (error) {
       writable = false;
-      songs = [...songs.filter(song => !song.builtin), ...builtins];
-      renderOptions(); messages.push(error.message);
+      renderOptions(selected || preferred, true);
+      messages.push(error.message);
     }
     setBusy(false);
     status(messages.join(' ') || timeline.error || (battle ? '' : '匯入與編輯的歌譜只保存在目前瀏覽器。可匯出備份，帶到另一台裝置。'));
+    await demos;
+    if (messages.length) status(messages.join(' '));
   }
   async function open() {
     if (!dialog.open) {
-      if (battle) dialog.show();
+      if (battle) { onBattleOpen(); dialog.show(); }
       else dialog.showModal();
     }
     syncBattleLayout();
@@ -380,7 +399,7 @@ export function songbook() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopScroll(); });
   window.addEventListener('pagehide', stopScroll);
   controls();
-  return { setBattle(active) {
+  return { open, setBattle(active) {
     if (battle !== active && dialog.open) close();
     battle = active; $('scoreSettings').open = false; controls(); syncBattleLayout();
   } };

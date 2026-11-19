@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spellPlans } from '../spell-plans.js';
+import { loadSpellPlan } from '../spell-plans.js';
 import { legends } from '../legends.js';
 import { monsters, realms } from '../catalog.js';
 
 // Exercise the real scene and dialog player, including their exit/clock contract.
 async function verifyPlayer(legend, plan) {
-  const keys = ['document', 'requestAnimationFrame', 'cancelAnimationFrame', 'matchMedia'];
+  const keys = ['document', 'requestAnimationFrame', 'cancelAnimationFrame', 'matchMedia', 'Image'];
   const descriptors = keys.map(key => Object.getOwnPropertyDescriptor(globalThis, key));
   function context() {
     let depth = 0;
@@ -31,11 +31,16 @@ async function verifyPlayer(legend, plan) {
   const canvas = (width = 480, height = 208) => {
     const c = context(); return { width, height, getContext: () => c };
   };
-  let rafId = 0, queue = new Map(), reduced = false;
+  let rafId = 0, queue = new Map(), reduced = false, frameRequested;
   globalThis.document = { hidden: false, querySelector: () => canvas(), createElement: () => canvas() };
-  globalThis.requestAnimationFrame = fn => { queue.set(++rafId, fn); return rafId; };
+  globalThis.requestAnimationFrame = fn => {
+    queue.set(++rafId, fn);
+    frameRequested?.();
+    return rafId;
+  };
   globalThis.cancelAnimationFrame = id => queue.delete(id);
   globalThis.matchMedia = () => ({ get matches() { return reduced; } });
+  globalThis.Image = class { width = 240; height = 200; async decode() {} };
   try {
     const { spellCinematic } = await import('../spell-cinematic.js');
     const style = { spell: legend.spell, color: legend.color };
@@ -57,7 +62,12 @@ async function verifyPlayer(legend, plan) {
     for (const fewer of [false, true]) for (const foe of [scene.foe, null]) {
       reduced = fewer; captions.clear();
       let settled = 0;
+      const firstFrame = new Promise(resolve => { frameRequested = resolve; });
       const result = player.play(style, { ...scene, foe }, '示範主角').then(value => { settled++; return value; });
+      await Promise.race([firstFrame, result]);
+      assert.ok(queue.size, 'playback scheduled its first frame');
+      frameRequested = null;
+      captions.clear();
       // Actual time is capped to 100 ms/frame, so drive enough frames for the full duration.
       for (let i = 0; i < 40; i++) tick();
       document.hidden = true;
@@ -86,13 +96,36 @@ async function verifyPlayer(legend, plan) {
     const replacement = player.play(style, scene, '新預覽');
     assert.equal(await replaced, false);
     nodes['#skipSpell'].onclick(); assert.equal(await replacement, true);
+    if (plan.art) {
+      // Leaving during image decode must never start a late animation or close its successor.
+      let release, started;
+      const decoding = new Promise(resolve => { started = resolve; });
+      globalThis.Image = class { decode() {
+        started();
+        return new Promise(resolve => { release = resolve; });
+      } };
+      const loading = player.play(style, scene, '載入中');
+      await decoding;
+      player.cancel();
+      assert.equal(await loading, false);
+      const next = player.play(style, scene, '新預覽');
+      release();
+      await Promise.resolve();
+      assert.equal(queue.size, 0);
+      assert.equal(dialog.open, true);
+      nodes['#skipSpell'].onclick(); assert.equal(await next, true);
+      // Unavailable art follows the same recoverable failure path as a missing plan.
+      globalThis.Image = class { decode() { return Promise.reject(Error('decode failed')); } };
+      await assert.rejects(player.play(style, scene, '載入失敗'), /decode failed/);
+      assert.equal(dialog.open, false);
+    }
   } finally {
     keys.forEach((key, i) => descriptors[i] ? Object.defineProperty(globalThis, key, descriptors[i]) : delete globalThis[key]);
   }
 }
 
-for (const legend of legends.filter(legend => spellPlans[legend.spell.id])) {
-  const plan = spellPlans[legend.spell.id];
+for (const legend of legends) {
+  const plan = await loadSpellPlan(legend.spell.id);
   test(legend.spell.name + ' player: full scene, preview, reduced motion, hidden pause and all exits',
     () => verifyPlayer(legend, plan));
 }

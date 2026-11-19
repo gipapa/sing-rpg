@@ -7,9 +7,13 @@ const keys = [[0,0,0,.18],[1150,0,0,.18],[2200,1,-2,-.2],[4150,1,0,.1],
 
 function crystal(c, x, y, h, width, slant) {
   c.save(); c.translate(x,y);
-  polygon(c,'#245272',[-width,0, -width*.8,-h*.55, slant,-h, width,-h*.4, width*.8,0]);
-  polygon(c,'#86d8e7',[-width*.8,-h*.55, slant,-h, 1,-h*.23, -width*.5,0]);
-  polygon(c,'#defbff',[slant,-h, width,-h*.4, 1,-h*.23]);
+  const ice = c.createLinearGradient(0, 0, slant, -Math.max(1, h));
+  ice.addColorStop(0, '#244256'); ice.addColorStop(.57, '#458a9e'); ice.addColorStop(1, '#c8f1ee');
+  polygon(c, ice, [-width,0, -width*.8,-h*.55, slant,-h, width,-h*.4, width*.8,0]);
+  polygon(c, '#477992', [slant,-h, width,-h*.4, width*.8,0, 1,-h*.23]);
+  polygon(c, '#9ac7d2', [-width*.8,-h*.55, slant,-h, 1,-h*.23]);
+  stroke(c, '#d9f8f5', .6, [-width*.8,-h*.55,slant,-h,slant*.76,-h*.76]);
+  if (h > 10) stroke(c,'#82b5be',.6,[-width*.7,-h*.22,-width*.1,-h*.31,width*.45,-h*.32]);
   c.restore();
 }
 
@@ -39,35 +43,71 @@ function iceField(c,t,w,{reduced}) {
   c.restore();
 }
 
-function frostBow(c,t,w,{reduced,foeY}) {
-  const hero=heroKeys(keys,t), draw=smooth(t,4600,7480)*(1-smooth(t,RELEASE,RELEASE+160));
-  const form=smooth(t,1200,4200), fade=1-smooth(t,HIT+500,HIT+1600);
-  const x=164+hero.dx, y=foeY+hero.dy*.5, h=11+(reduced?44:55)*form;
-  c.save(); c.globalAlpha=fade;
-  // The limbs curve away from the archer at the grip, then recurve at the notches.
-  const notch=x-4-5*form-19*draw, stringX=notch-2-24*draw;
-  for(const side of [-1,1]){
-    c.save();c.translate(x,y);c.scale(.55+.45*form,side===1?.58:side);
-    const tip=notch-x;
-    polygon(c,'#4795ae',[-2,0, 5,2, 10,h*.36, 5,h*.63, tip,h*.89, tip-4,h, tip-6,h*.92, -2,h*.57, 4,h*.33]);
-    stroke(c,'#dcfcff',1.6,[3,2, 8,h*.33, 3,h*.60, tip-2,h*.91, tip-4,h]);
+function archer(t) {
+  const p = heroKeys(keys, t);
+  p.lean = -.17 * smooth(t, 4600, 7480) + .24 * smooth(t, RELEASE, RELEASE + 170)
+    - .07 * smooth(t, RELEASE + 170, HIT);
+  p.weaponOpacity = 1 - smooth(t, 90, 430) + smooth(t, HIT + 500, HIT + 1600);
+  return p;
+}
+
+function frostBow(c, t, w, { reduced, foeY }) {
+  const hero = archer(t), x = 159 + hero.dx, y = 164 + hero.dy;
+  const form = smooth(t, 900, 4200), draw = smooth(t, 4600, 7480);
+  const release = span(t, RELEASE, RELEASE + 540);
+  const bounce = reduced ? 0 : Math.sin(release * Math.PI * 4) * (1 - release) ** 2;
+  const tension = draw * (1 - smooth(t, RELEASE, RELEASE + 110));
+  const height = 13 + (reduced ? 38 : 49) * form - 5 * tension;
+  const tipX = -4 - 9 * form - 14 * tension + 2 * bounce;
+  const nock = tipX - 2 - 25 * tension + 6 * bounce;
+  c.save(); c.translate(x, y); c.globalAlpha = 1 - hero.weaponOpacity;
+  for (const side of [-1, 1]) {
+    c.save(); c.scale(1, side === -1 ? -1 : .65);
+    const limb = c.createLinearGradient(-8, 0, 7, height);
+    limb.addColorStop(0, '#384754'); limb.addColorStop(.35, '#a4c0bf');
+    limb.addColorStop(.58, '#577f96'); limb.addColorStop(1, '#c0e9ee');
+    c.beginPath(); c.moveTo(0, 0);
+    c.bezierCurveTo(13, height * .36, tipX + 16, height * .65, tipX, height);
+    c.quadraticCurveTo(tipX - 4, height * .94, tipX + 3, height * .82);
+    c.bezierCurveTo(tipX + 15, height * .48, 2, height * .29, -2, 1);
+    c.fillStyle = limb; c.fill();
+    c.strokeStyle = '#d7f3ed'; c.lineWidth = 1; c.beginPath(); c.moveTo(2, 5);
+    c.bezierCurveTo(11, height * .38, tipX + 13, height * .72, tipX, height); c.stroke();
     c.restore();
   }
-  stroke(c,'#bde8fb',.9,[notch-4,y-h,stringX,y,notch-4,y+h*.58]);
-  const star=smooth(t,2700,5520);
-  if(t<1150) crystal(c,x-4,y-h,3.5,1.8,1);
-  if(t<5800) spark(c,x+55*(1-star),y-95*(1-star),2+star*2,'#c9efff',fade);
+  stroke(c, '#d4e5eb', .7, [tipX,-height,nock,0,tipX,height*.65]);
+  stroke(c, '#75614d', 3.1, [0,-5,0,4]);
+  for (const band of [-5, -2, 2]) stroke(c, '#cab997', .8, [-1.5,band,1.5,band-1]);
   c.restore();
 
-  const fly=eases.in(span(t,RELEASE,HOLD)), age=w-hitTime;
-  const launchX=164+heroKeys(keys,RELEASE).dx-9-19-2-24+59;
-  const tip=t<RELEASE?stringX+59:launchX+(321-launchX)*fly+(t>=HIT?14+124*eases.out(span(age,0,420)):0);
-  if(t>=4150 && age<500){
-    c.save();c.globalAlpha=smooth(t,4150,5300)*(1-smooth(age,260,500));
-    stroke(c,'#67a7c1',2.8,[tip-57,y,tip-5,y]);stroke(c,'#fff8da',.9,[tip-57,y-.6,tip-3,y-.6]);
-    polygon(c,'#b5f5fb',[tip,y,tip-13,y-4,tip-10,y,tip-13,y+4]);
-    polygon(c,'#519cbf',[tip,y,tip-10,y,tip-13,y+4]);
-    polygon(c,'#a7c9ea',[tip-52,y,tip-58,y-4,tip-48,y-3,tip-44,y]);c.restore();
+  const star = smooth(t, 2700, 5150);
+  if (t < 5300) {
+    const light = smooth(t, 900, 2700) * (1 - smooth(t, 4850, 5300));
+    c.save();
+    spark(c, x + nock + 62 * (1-star), y - 98 * (1-star) - 19 * Math.sin(Math.PI*star),
+      1.7 + star * 1.7, '#d8f5ff', light);
+    c.restore();
+  }
+
+  const fly = eases.in(span(t, RELEASE, HOLD)), age = w - hitTime;
+  const launch = heroKeys(keys, RELEASE);
+  const launchX = 159 + launch.dx - 4 - 9 - 14 - 2 - 25 + 59;
+  const tip = t < RELEASE ? x + nock + 59 : launchX + (321-launchX)*fly
+    + (t >= HIT ? 14 + 124*eases.out(span(age,0,420)) : 0);
+  const arrowY = t < RELEASE ? y : 164 + launch.dy + (foeY - 164 - launch.dy) * fly;
+  if (t >= 4150 && age < 500) {
+    c.save(); c.translate(tip, arrowY);
+    c.globalAlpha = smooth(t,4150,5300) * (1-smooth(age,260,500));
+    stroke(c,'#4d768e',2.4,[-59,0,-5,0]); stroke(c,'#c9e4dd',.7,[-56,-.6,-3,-.6]);
+    polygon(c,'#a9d3dc',[0,0,-12,-3.2,-9,0,-12,3.2]);
+    polygon(c,'#588499',[0,0,-9,0,-12,3.2]);
+    polygon(c,'#97b9cc',[-52,0,-59,-3.4,-50,-2.7,-45,0]);
+    if (fly > 0) {
+      const wake = c.createLinearGradient(-100,0,-10,0);
+      wake.addColorStop(0,'#a5eef100'); wake.addColorStop(1,'#daffffa0');
+      polygon(c,wake,[-100,0,-10,-1.1,-4,0,-10,1.1]);
+    }
+    c.restore();
   }
   if(t>=7250 && t<HIT) {
     const aim=smooth(t,7250,RELEASE), dim=1-smooth(t,RELEASE,HOLD);
@@ -102,10 +142,10 @@ export const frostPlan={
     [RELEASE,'穿星 · 一線疾馳',[175,153,2.3,0],[309,157,2.6,.02],'in'],
     [HOLD,'止息 · 矢前寸雪',[318,158,3.4,0],[321,158,3.48,0],'out'],
     [HIT,'貫霜 · 冰華迸裂',[337,156,2.9,-.025],[358,151,2.4,0],'out'],
-    [10150,'冰徑 · 萬星垂地',[325,154,1.9,0],[246,124,1.15,0],'out'],
-    [11200,'終幕 · 永冬穿星',[239,123,1.15,0],[239,119,1.2,0],'smooth']],
+    [10150,'冰徑 · 萬星垂地',[358,151,2.4,0],[246,124,1.15,0],'out'],
+    [11200,'終幕 · 永冬穿星',[246,124,1.15,0],[239,119,1.2,0],'smooth']],
   close:[[0,1150],[5800,RELEASE],[HOLD,10150]],lines:[['h',RELEASE,HOLD]],flashes:[[HIT,180,.29,'#e5fdff']],
   shake:t=>t>=HIT?6*Math.exp(-(t-HIT)/175):0,
-  pose:(t,w,reduced)=>({hero:heroKeys(keys,t),foe:recoil(w-hitTime,smooth(t,6300,7900),33,12,reduced)}),
+  pose:(t,w,reduced)=>({hero:archer(t),foe:recoil(w-hitTime,smooth(t,6300,7900),33,12,reduced)}),
   back:iceField,front:frostBow
 };

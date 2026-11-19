@@ -1,4 +1,4 @@
-import { HAND, FOE, span, clamp, mix, eases, rand, spark, glow, sigil } from './spell-fx.js';
+import { HAND, FOE, span, clamp, mix, eases, rand, spark, glow, sigil, polygon, stroke } from './spell-fx.js';
 
 // 滄海王令: a retreating sea crowns its bearer, becomes a three-pronged lance,
 // then opens a bright passage through the waves with one decisive thrust.
@@ -113,13 +113,25 @@ function waves(c, t, w, color, reduced) {
   if (bore > 0) {
     const fade = 1 - .6 * span(t, IMPACT + 1500, DURATION);
     c.globalCompositeOperation = 'source-over';
-    c.globalAlpha = .95; c.fillStyle = '#0a2c3e'; c.fillRect(392, 153 - bore, 728, bore * 2);
+    // A round mouth tears open at the inner face; the wake narrows into the wall.
+    const lip = 391, end = 700, y = 153;
+    const passage = c.createLinearGradient(lip - 9, y, end, y);
+    passage.addColorStop(0,'#0b2e41'); passage.addColorStop(.45,'#104357'); passage.addColorStop(1,'#19597200');
+    c.globalAlpha = .94; c.fillStyle = passage; c.beginPath(); c.moveTo(lip,y-bore);
+    c.quadraticCurveTo(lip+62,y-bore*.53,end,y-bore*.16);
+    c.lineTo(end,y+bore*.16); c.quadraticCurveTo(lip+54,y+bore*.74,lip,y+bore);
+    c.bezierCurveTo(lip-bore*.53,y+bore,lip-bore*.6,y-bore,lip,y-bore); c.fill();
     c.globalCompositeOperation = 'lighter';
-    const core = c.createLinearGradient(0, 153 - bore, 0, 153 + bore);
-    core.addColorStop(0, '#00000000'); core.addColorStop(.5, color); core.addColorStop(1, '#00000000');
-    c.globalAlpha = .55 * fade; c.fillStyle = core; c.fillRect(392, 153 - bore, 728, bore * 2);
-    c.globalAlpha = .9 * fade; c.fillStyle = WHITE;
-    c.fillRect(392, 152 - bore, 728, 2); c.fillRect(392, 152 + bore, 728, 2);
+    for (const side of [-1,1]) {
+      c.strokeStyle = PEARL; c.lineWidth = 1; c.globalAlpha = .54*fade;
+      c.beginPath(); c.moveTo(lip-2,y+side*bore*.9);
+      c.quadraticCurveTo(lip+26,y+side*bore*.69,lip+58,y+side*bore*.55); c.stroke();
+      for (let i=0; i<(reduced ? 5 : 13); i++) {
+        const q = (w/1100+rand(i,58))%1;
+        c.globalAlpha = fade * (1-q) * .7; c.fillStyle = PEARL;
+        c.fillRect(lip+q*(54+rand(i,59)*34), y+side*bore*(1-q*.5)-4*Math.sin(q*Math.PI), 1+q*3,1);
+      }
+    }
     // The horizon line of the parted sea.
     c.globalAlpha = .5 * fade * (1 - span(t, IMPACT + 2400, DURATION)); c.fillRect(-640, 152.5, 1760, 1);
   }
@@ -143,38 +155,37 @@ function seaCrown(c, t, w, color, reduced) {
   c.save();
   c.translate(small ? 155 : 155 + (headX - 155) * sink, small ? 145 - 20 * rise : 150 - 150 * rise + (headY - 0) * sink);
   c.scale(size, size);
-  const shape = () => {
-    c.beginPath(); c.moveTo(-44, 0); c.lineTo(-51, -43); c.lineTo(-31, -28);
-    c.lineTo(-26, -64); c.lineTo(-12, -36); c.lineTo(0, -82);
-    c.lineTo(12, -36); c.lineTo(26, -64); c.lineTo(31, -28);
-    c.lineTo(51, -43); c.lineTo(44, 0); c.closePath();
-  };
-  const body = c.createLinearGradient(0, -82, 0, 4);
-  body.addColorStop(0, WHITE); body.addColorStop(.3, PEARL); body.addColorStop(.7, color); body.addColorStop(1, '#2a7f96');
-  c.globalAlpha = alpha * .9; c.fillStyle = body; shape(); c.fill();
-  // Hollow centre gives the rim thickness and depth.
-  c.save(); c.translate(0, -4); c.scale(.74, .7);
-  c.globalAlpha = alpha * .45; c.fillStyle = '#1f6f88'; shape(); c.fill();
-  c.restore();
-  c.globalCompositeOperation = 'lighter';
-  c.globalAlpha = alpha; c.strokeStyle = WHITE; c.lineWidth = .8; shape(); c.stroke();
-  // Rising shimmer inside the crown.
-  for (let i = 0; i < 12; i++) {
-    const q = (w / 1600 + i / 12) % 1;
-    c.globalAlpha = alpha * .35 * Math.sin(q * Math.PI); c.fillStyle = PEARL;
-    c.fillRect(-28 + rand(i, 31) * 50, -6 - q * 40, 6 + rand(i, 32) * 8, .6);
+  // An open tide diadem: curved rear band behind five shell-shaped spires.
+  // The sky shows through each arch even when the crown fills the frame.
+  c.globalAlpha = alpha;
+  const silver = c.createLinearGradient(-45,-32,45,-16);
+  silver.addColorStop(0,'#507d88'); silver.addColorStop(.26,'#dde9df');
+  silver.addColorStop(.46,'#67919b'); silver.addColorStop(.72,'#bed8d0'); silver.addColorStop(1,'#3a6475');
+  c.strokeStyle = '#568188'; c.lineWidth = 3;
+  c.beginPath(); c.ellipse(0,-3,44,7,0,Math.PI,2*Math.PI); c.stroke();
+  for (const [x, peak, sweep] of [[-42,-39,-8],[42,-39,8],[-23,-62,-6],[23,-62,6],[0,-79,0]]) {
+    c.fillStyle = silver;
+    c.beginPath(); c.moveTo(x-7,0); c.quadraticCurveTo(x+1,-25,x+sweep,peak);
+    c.quadraticCurveTo(x+sweep+4,peak+13,x+6,-19); c.lineTo(x+10,-2); c.closePath(); c.fill();
+    polygon(c,'#448497',[x,-4,x+sweep,peak+5,x+5,-19,x+6,-4]);
+    stroke(c,PEARL,.85,[x-4,-3,x+sweep,peak+2]);
+    if (Math.abs(x)<30) {
+      glow(c,x+sweep,peak,6,color,alpha*.6);
+      spark(c,x+sweep,peak,1.3,WHITE,alpha);
+    }
   }
-  // Pearl band.
-  c.globalCompositeOperation = 'source-over';
-  c.globalAlpha = alpha; c.fillStyle = color; c.fillRect(-46, -3, 92, 5);
-  for (let x = -42; x <= 42; x += 4) {
-    c.fillStyle = PEARL; c.fillRect(x - 1.5, -2.5, 3.4, 4);
-    c.fillStyle = WHITE; c.fillRect(x - 1, -2, 1.2, 1.2);
+  c.globalAlpha = alpha;
+  for (const side of [-1,1]) {
+    c.save(); c.scale(side,1); c.strokeStyle = silver; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0,-46); c.quadraticCurveTo(11,-16,23,-40);
+    c.quadraticCurveTo(32,-16,44,-27); c.stroke(); c.restore();
   }
-  c.globalCompositeOperation = 'lighter';
-  for (const [x, y] of [[-26, -64], [0, -82], [26, -64]]) {
-    glow(c, x, y, 12, color, alpha * .9);
-    spark(c, x, y, 1.6, WHITE, alpha);
+  c.fillStyle = silver; c.beginPath(); c.moveTo(-45,-9);
+  c.quadraticCurveTo(0,8,45,-9); c.lineTo(43,0); c.quadraticCurveTo(0,19,-43,0); c.fill();
+  for (const x of [-32,-17,0,17,32]) {
+    const y=4-x*x*.004;
+    polygon(c,'#34536a',[x-3,y,x,y-3.6,x+3,y,x,y+3.6]);
+    polygon(c,'#c1f1ec',[x-2,y,x,y-2.5,x+1,y,x,y+2.5]);
   }
   // Water curtains pour from the base and fall away.
   for (let i = 0; i < (reduced ? 8 : 22); i++) {
@@ -222,20 +233,22 @@ function trident(c, hx, hy, angle, len, color, alpha, w = 0, helix = 0) {
   c.fillStyle = WHITE; c.fillRect(-shaft * .3, base - 2, Math.max(1, shaft * .6), len - head + 14);
   c.fillStyle = color;
   for (let y = 10; y < len - head; y += 20) c.fillRect(-shaft - 1.5, -y, shaft * 2 + 3, 2);
-  // Crossbar with upturned ends.
-  c.fillStyle = ink; c.fillRect(-wide - 3, base - 1, wide * 2 + 6, 6);
-  c.fillStyle = PEARL; c.fillRect(-wide - 2, base, wide * 2 + 4, 4);
-  for (const side of [-1, 1]) { c.fillStyle = PEARL; c.fillRect(side * (wide + 1) - 1.5, base - 6, 3, 7); }
-  // Prongs with points and outward barbs.
-  for (const side of [-1, 0, 1]) {
-    const x = side * wide, tip = -len + (side ? 12 : 0), sgn = side || 1;
-    c.fillStyle = ink; c.fillRect(x - 3, tip + 9, 6, base - tip - 9);
-    c.fillStyle = PEARL; c.fillRect(x - 2, tip + 9, 4, base - tip - 9);
-    c.fillStyle = WHITE; c.fillRect(x - .5, tip + 10, 1, base - tip - 12);
-    c.beginPath(); c.moveTo(x, tip); c.lineTo(x + 4, tip + 13); c.lineTo(x - 4, tip + 13); c.closePath(); c.fill();
-    c.fillStyle = PEARL;
-    c.beginPath(); c.moveTo(x + sgn * 3, tip + 11); c.lineTo(x + sgn * 8, tip + 19); c.lineTo(x + sgn * 3, tip + 18); c.closePath(); c.fill();
+  // The three swept flukes branch from one socket, like the open crown.
+  // A dark spine maintains their shape against the spray at contact.
+  const spread = Math.min(wide, head * .42);
+  for (const side of [-1, 1]) {
+    c.save(); c.scale(side,1);
+    const tip = -len + head * .14;
+    polygon(c,ink,[-shaft,base+4,spread*.66,base-3,spread,base-head*.35,
+      spread*.95,tip,spread*1.34,tip+head*.22,spread*1.18,tip+head*.22,
+      spread*1.22,base-head*.24,spread*.9,base+1,shaft,base+8]);
+    polygon(c,'#a6c8c9',[0,base+3,spread*.75,base-3,spread*1.02,base-head*.32,
+      spread*.97,tip+2,spread*1.17,tip+head*.2,spread*1.12,base-head*.28,spread*.85,base-1]);
+    c.restore();
   }
+  polygon(c,ink,[-shaft,base+3,-shaft*.85,-len+head*.33,-shaft*2,-len+head*.36,0,-len,
+    shaft*2,-len+head*.36,shaft*.85,-len+head*.33,shaft,base+3]);
+  polygon(c,WHITE,[0,base,-shaft*.65,-len+head*.31,0,-len,shaft*.6,-len+head*.29]);
   c.globalCompositeOperation = 'lighter';
   glow(c, 0, base + 2, 10 + wide * .5, color, alpha * .8);
   spark(c, 0, base + 2, 1.4, WHITE, alpha);
@@ -418,7 +431,7 @@ export const tidePlan = {
     [STRIKE, '突進 · 王令破浪', [150, 150, 1.6, -.08], [299, 151, 2.5, .03], 'in', 90],
     [FREEZE, '靜海 · 鋒前一瞬', [321, 153, 3.1, .03], [323, 153, 3.3, .015], 'out'],
     [IMPACT, '貫穿 · 白潮天決', [345, 151, 3.4, -.05], [362, 150, 2.5, .02], 'out'],
-    [IMPACT + 800, '餘潮 · 海天一線', [320, 120, 1.6, .02], [250, 68, .94, 0], 'inOut'],
+    [IMPACT + 800, '餘潮 · 海天一線', [352, 149, 2.05, .02], [250, 103, .94, 0], 'inOut'],
     [IMPACT + 2100, '終幕 · 滄海王令', [230, 122, 1.35, 0], [225, 127, 1.5, 0], 'smooth']
   ],
   close: [[0, SURGE], [3600, CROWN], [CHARGE, STRIKE], [FREEZE, IMPACT + 800]],

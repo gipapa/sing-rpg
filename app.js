@@ -6,8 +6,10 @@ import {realms,monsters,equipment,companions,newGame,available,travelingParty} f
 import {camp} from './camp.js';
 import {battleDrums} from './drums.js';
 import {songbook} from './songbook.js';
-import {spellCinematic,hasCinematic} from './spell-cinematic.js';
+import {spellCinematic} from './spell-cinematic.js';
+import {hasCinematic} from './spell-plans.js';
 import {legends} from './legends.js';
+import {claimGameSession, gameSave, SaveConflict} from './game-save.js';
 const $=id=>document.getElementById(id);
 const defaultList='https://music.apple.com/tw/playlist/華語流行樂-重溫熱播/pl.6d8228f57b864a4296dc02d9761a0d9b';
 function playlistURL(input){
@@ -30,8 +32,16 @@ $('playlistForm').onsubmit=event=>{
   try{loadList($('playlist').value);$('formError').textContent='';$('editor').open=false;}
   catch{$('formError').textContent='請在 Apple Music 的歌單選擇「分享播放列表」，複製完整的 music.apple.com 連結。';}
 };
-const saveKey = 'eight-realms-v1';
-const data = read(saveKey) || newGame();
+const songbookUI = songbook(() => {
+  battleMenu(false);
+  if (document.body.classList.contains('music-open')) musicDrawer(false);
+});
+$('writerWaiting').oncancel = event => event.preventDefault();
+$('waitingSongbook').onclick = songbookUI.open;
+window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+const releaseWriter = await claimGameSession($('writerWaiting'));
+const store = gameSave(Boolean(releaseWriter));
+const data = store.game || newGame();
 data.legends ??= {};
 const drums = battleDrums($('field'), data, showSpell);
 const cinematic = spellCinematic($('spellDialog'));
@@ -57,6 +67,9 @@ async function showSpell(style) {
         country: data.country, area: currentArea(trip), gear: [...data.loadouts[0]],
         foe: trip.stage === 'battle' ? monsters[trip.foe] : null
       }, data.name);
+  } catch {
+    // A failed animation download still settles the charged attack.
+    completed = true;
   } finally {
     spellPlaying = false;
     drums.setPaused(false);
@@ -88,23 +101,52 @@ async function showSpell(style) {
   }
   handleBattleEvent(event, performance.now());
 }
-function persist() {
-  save(saveKey, data);
+let pageActive = true;
+let saveConflict = false;
+async function persist() {
+  if (!pageActive || saveConflict) return false;
+  try {
+    await store.write(data);
+    $('saveWarning').hidden = true;
+    return true;
+  } catch (error) {
+    saveConflict = error instanceof SaveConflict;
+    $('saveWarningText').textContent = saveConflict ? error.message
+      : '這次進度尚未保存。請檢查瀏覽器的儲存空間與權限，再重試。';
+    $('retrySave').textContent = saveConflict ? '接續最新進度' : '重試儲存';
+    $('saveWarning').hidden = false;
+    return false;
+  }
 }
+$('retrySave').onclick = async () => {
+  if (saveConflict) { location.reload(); return; }
+  if (await persist() && !running) {
+    $('nameStatus').textContent = '';
+    $('portraitStatus').textContent = '';
+    departureStatus('進度已保存。');
+  }
+};
+window.addEventListener('beforeunload', event => {
+  if (!$('saveWarning').hidden && !saveConflict) event.preventDefault();
+});
 // Camp-only skill preview: a demonstration duel that never touches battle, charge or progress.
-function previewSpell(legend) {
+async function previewSpell(legend) {
   if (running || pending || spellPlaying) return;
   const country = legend.country;
   const foe = monsters.find((m) => m.country === country && m.base === 3);
   // Unowned weapons stay hidden: the hero keeps the current blade until the legend is found.
   const gear = [...data.loadouts[0]];
   if (data.legends[legend.index]) gear[2] = legend.id;
-  return cinematic.play({ spell: legend.spell, tint: null, color: legend.color }, {
-    country, area: { land: 3, element: realms[country].sub[0] }, gear, foe, foeName: '示範敵人・' + foe.name
-  }, data.name);
+  $('previewStatus').textContent = '';
+  try {
+    await cinematic.play({ spell: legend.spell, tint: null, color: legend.color }, {
+      country, area: { land: 3, element: realms[country].sub[0] }, gear, foe, foeName: '示範敵人・' + foe.name
+    }, data.name);
+  } catch {
+    $('previewStatus').textContent = '招式演出無法載入，請重新預覽。';
+  }
 }
 const lobby = camp(data, persist, previewSpell);
-const songbookUI = songbook();
 let mic = null,
   running = false,
   pending = false,
@@ -249,10 +291,13 @@ function returnToCamp() {
     mic = null;
   }
   voice = false;
-  persist();
+  const saved = persist();
   lobby.refresh(battleEntry.id === 'settingsAction' ? 'settings' : 'map');
   focusBattle(false);
-  departureStatus('進度已保存。可繼續本國遠征，或從地圖前往其他國家。');
+  departureStatus('');
+  saved.then(ok => {
+    if (!running && !pending) departureStatus(ok ? '進度已保存。可繼續本國遠征，或從地圖前往其他國家。' : '這次進度尚未保存。');
+  });
   if (data.story !== null && !document.hidden) lobby.story();
 }
 $('returnCamp').onclick = returnToCamp;
@@ -260,14 +305,28 @@ function departureStatus(message) {
   $('status').textContent = message;
   $('settingsBattleStatus').textContent = message;
 }
-async function startBattle(event) {
+let captureRequest;
+function cancelDeparture() {
+  startAttempt++;
+  pending = false;
+  captureRequest?.abort();
+  captureRequest = null;
+  $('micWaiting').close();
+  $('action').disabled = false;
+  $('settingsAction').disabled = false;
+  departureStatus('');
+  battleEntry.focus();
+}
+$('cancelMic').onclick = cancelDeparture;
+$('micWaiting').oncancel = event => { event.preventDefault(); cancelDeparture(); };
+$('autoInstead').onclick = () => {
+  cancelDeparture();
+  startBattle(battleEntry, false);
+};
+async function startBattle(entry, useMicrophone = microphoneSettings(data).source !== 'none') {
   if (pending || running || data.story !== null || !available(data, data.country)) return;
-  if ($('loadMicrophones').disabled) {
-    departureStatus('請先完成麥克風清單讀取或關閉授權提示，再開始戰鬥。');
-    return;
-  }
-  battleEntry = event.currentTarget;
-  const useMicrophone = microphoneSettings(data).source !== 'none';
+  lobby.cancelMicrophoneList();
+  battleEntry = entry;
   const attempt = ++startAttempt;
   inputNotice = '';
   $('micStatus').hidden = true;
@@ -277,14 +336,17 @@ async function startBattle(event) {
   $('action').disabled = true;
   $('settingsAction').disabled = true;
   departureStatus(useMicrophone ? '正在開啟麥克風…' : '正在出發…');
-  document.querySelector('main').inert = true;
-  document.querySelector('header').inert = true;
+  if (useMicrophone) {
+    captureRequest = new AbortController();
+    $('micWaiting').showModal();
+  }
   try {
-    const input = await listen(data);
+    const input = useMicrophone ? await listen(data, captureRequest.signal) : null;
     if (attempt !== startAttempt) {
       input?.close();
       return;
     }
+    if ($('micWaiting').open) $('micWaiting').close();
     mic = input;
     if (mic) {
       $('micStatus').textContent = '瀏覽器回報收音：' + (mic.track.label || '未提供裝置名稱');
@@ -296,7 +358,6 @@ async function startBattle(event) {
     running = true;
     drums.start(mic);
     party = travelingParty(data);
-    document.querySelector('main').inert = false;
     focusBattle(true);
     renderBattle();
     if (mic) mic.track.onended = () => automaticAttack('收音已中斷，已切換自動攻擊');
@@ -316,17 +377,16 @@ async function startBattle(event) {
   } finally {
     if (attempt === startAttempt) {
       pending = false;
+      captureRequest = null;
+      if ($('micWaiting').open) $('micWaiting').close();
       if (!running) {
-        document.querySelector('main').inert = false;
-        document.querySelector('header').inert = false;
         $('action').disabled = false;
         $('settingsAction').disabled = false;
       }
     }
   }
 }
-$('action').onclick = startBattle;
-$('settingsAction').onclick = startBattle;
+$('action').onclick = $('settingsAction').onclick = event => startBattle(event.currentTarget);
 const lessMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let lastPaint = -100;
 function animate(ms) {
@@ -350,18 +410,14 @@ function animate(ms) {
   frame = requestAnimationFrame(animate);
 }
 window.addEventListener('pagehide', () => {
+  lobby.cancelMicrophoneList();
   if (pending) {
-    startAttempt++;
-    pending = false;
-    document.querySelector('main').inert = false;
-    document.querySelector('header').inert = false;
-    lobby.refresh();
+    cancelDeparture();
   }
   if (running) returnToCamp();
   lobby.stopStory();
-});
-window.addEventListener('pageshow', () => {
-  if (!running && data.story !== null && !$('story').open) lobby.story();
+  pageActive = false;
+  releaseWriter?.();
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && running) persist();
